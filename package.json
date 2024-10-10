@@ -1,13 +1,10 @@
 {
   "name": "some_doc_viewers",
   "version": "0.0.1",
+  "type": "module",
   "description": "Doc Viewers",
   "main": "dist/index.js",
-  "module": "src/index.ts",
-  "types": "dist/index.d.ts",
-  "files": [
-    "dist"
-  ],
+  "module": "dist/index.js",
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
@@ -21,17 +18,26 @@
   "author": "",
   "license": "MIT",
   "devDependencies": {
+    "esbuild-plugin-less": "^1.1.0",
     "tsup": "^8.3.0",
     "typescript": "^5.6.2",
     "vitest": "^2.1.1"
   },
   "dependencies": {
+    "@types/lodash": "^4.17.10",
+    "@types/nvd3": "^1.8.45",
     "@types/react": "^18.3.9",
+    "@types/tinycolor": "^1.1.27",
+    "d3": "^3.5.17",
+    "fast-xml-parser": "^4.5.0",
     "jquery": "^3.7.1",
+    "lodash": "^4.17.21",
     "mammoth": "^1.8.0",
+    "nvd3": "^1.8.6",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-pdf": "^9.1.1",
+    "tinycolor2": "^1.6.0",
     "xlsx": "^0.18.5"
   }
 }

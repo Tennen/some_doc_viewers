@@ -452,4 +452,4 @@ See http://github.com/bgrins/filereader.js for documentation.
     // The interface is supported, bind the FileReaderJS callbacks
     FileReaderJS.enabled = true;
 
-})(this, document);
+})(window, document);

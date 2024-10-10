@@ -399,7 +399,7 @@ See http://github.com/bgrins/filereader.js for documentation.
             if (source[property] && source[property].constructor &&
                 source[property].constructor === Object) {
                 destination[property] = destination[property] || {};
-                arguments.callee(destination[property], source[property]);
+                extend(destination[property], source[property]);
             }
             else {
                 destination[property] = source[property];
@@ -452,4 +452,4 @@ See http://github.com/bgrins/filereader.js for documentation.
     // The interface is supported, bind the FileReaderJS callbacks
     FileReaderJS.enabled = true;
 
-})(this, document);
+})(window, document);

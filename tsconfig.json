@@ -1,6 +1,6 @@
 {
   "include": ["src"],
-  "exclude": ["**/*.test.ts"],
+  "exclude": ["**/*.test.ts", "src/assets/pptxjs/js/*.js"],
   "compilerOptions": {
     "target": "es6",
     "lib": ["dom", "dom.iterable", "esnext"],
