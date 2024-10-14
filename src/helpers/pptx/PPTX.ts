@@ -1,3 +1,5 @@
+// PPTX.ts is a rewrite of the original pptxjs library.
+
 import JSZip from 'jszip';
 import { XMLParser } from 'fast-xml-parser';
 import { dingbatUnicode } from './dingbatUnicode';
@@ -202,7 +204,7 @@ export class PPTX {
                 //remove "<![CDATA[ ... ]]>" tag
                 fileContent = fileContent?.replace(/<!\[CDATA\[(.*?)\]\]>/g, '$1');
             }
-            const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: "", attributesGroupName: "attrs", ignorePiTags: true });
+            const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: "", attributesGroupName: "attrs", ignorePiTags: true, trimValues: false });
             return parser.parse(fileContent);
         } catch (e) {
             //console.log("error readXmlFile: the file '", filename, "' not exit")
@@ -222,18 +224,18 @@ export class PPTX {
         let slidesLocArray = [];
         let slideLayoutsLocArray = [];
         for (var i = 0; i < subObj.length; i++) {
-            switch (subObj[i]["attrs"]["ContentType"]) {
+            switch (subObj[i]["attrs"]?.["ContentType"]) {
                 case "application/vnd.openxmlformats-officedocument.presentationml.slide+xml":
-                    slidesLocArray.push(subObj[i]["attrs"]["PartName"].substr(1));
+                    slidesLocArray.push(subObj[i]["attrs"]?.["PartName"].substr(1));
                     break;
                 case "application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml":
-                    slideLayoutsLocArray.push(subObj[i]["attrs"]["PartName"].substr(1));
+                    slideLayoutsLocArray.push(subObj[i]["attrs"]?.["PartName"].substr(1));
                     break;
                 default:
             }
         }
-        let appVersionStr = app["Properties"]["AppVersion"]
-        this.appVersion = parseInt(appVersionStr);
+        let appVersionStr = app?.["Properties"]?.["AppVersion"]
+        this.appVersion = appVersionStr ? parseInt(appVersionStr) : Number.POSITIVE_INFINITY;
         let sldSzAttrs = presentation["p:presentation"]["p:sldSz"]["attrs"];
         let sldSzWidth = parseInt(sldSzAttrs["cx"]);
         let sldSzHeight = parseInt(sldSzAttrs["cy"]);
@@ -256,15 +258,15 @@ export class PPTX {
         let slideResObj: Record<string, any> = {};
         if (RelationshipArray.constructor === Array) {
             for (var i = 0; i < RelationshipArray.length; i++) {
-                switch (RelationshipArray[i]["attrs"]["Type"]) {
+                switch (RelationshipArray[i]["attrs"]?.["Type"]) {
                     case "http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout":
-                        layoutFilename = RelationshipArray[i]["attrs"]["Target"].replace("../", "ppt/");
+                        layoutFilename = RelationshipArray[i]["attrs"]?.["Target"].replace("../", "ppt/");
                         break;
                     case "http://schemas.microsoft.com/office/2007/relationships/diagramDrawing":
-                        diagramFilename = RelationshipArray[i]["attrs"]["Target"].replace("../", "ppt/");
-                        slideResObj[RelationshipArray[i]["attrs"]["Id"]] = {
-                            "type": RelationshipArray[i]["attrs"]["Type"].replace("http://schemas.openxmlformats.org/officeDocument/2006/relationships/", ""),
-                            "target": RelationshipArray[i]["attrs"]["Target"].replace("../", "ppt/")
+                        diagramFilename = RelationshipArray[i]["attrs"]?.["Target"].replace("../", "ppt/");
+                        slideResObj[RelationshipArray[i]["attrs"]?.["Id"]] = {
+                            "type": RelationshipArray[i]["attrs"]?.["Type"].replace("http://schemas.openxmlformats.org/officeDocument/2006/relationships/", ""),
+                            "target": RelationshipArray[i]["attrs"]?.["Target"].replace("../", "ppt/")
                         };
                         break;
                     case "http://schemas.openxmlformats.org/officeDocument/2006/relationships/notesSlide":
@@ -272,14 +274,14 @@ export class PPTX {
                     case "http://schemas.openxmlformats.org/officeDocument/2006/relationships/chart":
                     case "http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink":
                     default:
-                        slideResObj[RelationshipArray[i]["attrs"]["Id"]] = {
-                            "type": RelationshipArray[i]["attrs"]["Type"].replace("http://schemas.openxmlformats.org/officeDocument/2006/relationships/", ""),
-                            "target": RelationshipArray[i]["attrs"]["Target"].replace("../", "ppt/")
+                        slideResObj[RelationshipArray[i]["attrs"]?.["Id"]] = {
+                            "type": RelationshipArray[i]["attrs"]?.["Type"].replace("http://schemas.openxmlformats.org/officeDocument/2006/relationships/", ""),
+                            "target": RelationshipArray[i]["attrs"]?.["Target"].replace("../", "ppt/")
                         };
                 }
             }
         } else {
-            layoutFilename = RelationshipArray["attrs"]["Target"].replace("../", "ppt/");
+            layoutFilename = RelationshipArray["attrs"]?.["Target"].replace("../", "ppt/");
         }
         //console.log(slideResObj);
         // Open slideLayoutXX.xml
@@ -302,19 +304,19 @@ export class PPTX {
         let layoutResObj: Record<string, any> = {};
         if (RelationshipArray.constructor === Array) {
             for (var i = 0; i < RelationshipArray.length; i++) {
-                switch (RelationshipArray[i]["attrs"]["Type"]) {
+                switch (RelationshipArray[i]["attrs"]?.["Type"]) {
                     case "http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideMaster":
-                        masterFilename = RelationshipArray[i]["attrs"]["Target"].replace("../", "ppt/");
+                        masterFilename = RelationshipArray[i]["attrs"]?.["Target"].replace("../", "ppt/");
                         break;
                     default:
-                        layoutResObj[RelationshipArray[i]["attrs"]["Id"]] = {
-                            "type": RelationshipArray[i]["attrs"]["Type"].replace("http://schemas.openxmlformats.org/officeDocument/2006/relationships/", ""),
-                            "target": RelationshipArray[i]["attrs"]["Target"].replace("../", "ppt/")
+                        layoutResObj[RelationshipArray[i]["attrs"]?.["Id"]] = {
+                            "type": RelationshipArray[i]["attrs"]?.["Type"].replace("http://schemas.openxmlformats.org/officeDocument/2006/relationships/", ""),
+                            "target": RelationshipArray[i]["attrs"]?.["Target"].replace("../", "ppt/")
                         };
                 }
             }
         } else {
-            masterFilename = RelationshipArray["attrs"]["Target"].replace("../", "ppt/");
+            masterFilename = RelationshipArray["attrs"]?.["Target"].replace("../", "ppt/");
         }
 
         let slideMasterResFilename = masterFilename.replace("slideMasters/slideMaster", "slideMasters/_rels/slideMaster") + ".rels";
@@ -333,19 +335,19 @@ export class PPTX {
         let masterResObj: Record<string, any> = {};
         if (RelationshipArray.constructor === Array) {
             for (var i = 0; i < RelationshipArray.length; i++) {
-                switch (RelationshipArray[i]["attrs"]["Type"]) {
+                switch (RelationshipArray[i]["attrs"]?.["Type"]) {
                     case "http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme":
-                        themeFilename = RelationshipArray[i]["attrs"]["Target"].replace("../", "ppt/");
+                        themeFilename = RelationshipArray[i]["attrs"]?.["Target"].replace("../", "ppt/");
                         break;
                     default:
-                        masterResObj[RelationshipArray[i]["attrs"]["Id"]] = {
-                            "type": RelationshipArray[i]["attrs"]["Type"].replace("http://schemas.openxmlformats.org/officeDocument/2006/relationships/", ""),
-                            "target": RelationshipArray[i]["attrs"]["Target"].replace("../", "ppt/")
+                        masterResObj[RelationshipArray[i]["attrs"]?.["Id"]] = {
+                            "type": RelationshipArray[i]["attrs"]?.["Type"].replace("http://schemas.openxmlformats.org/officeDocument/2006/relationships/", ""),
+                            "target": RelationshipArray[i]["attrs"]?.["Target"].replace("../", "ppt/")
                         };
                 }
             }
         } else {
-            themeFilename = RelationshipArray["attrs"]["Target"].replace("../", "ppt/");
+            themeFilename = RelationshipArray["attrs"]?.["Target"].replace("../", "ppt/");
         }
         //console.log(themeFilename)
         //Load Theme file
@@ -363,16 +365,16 @@ export class PPTX {
                     let themeFilename = "";
                     if (relationshipArray.constructor === Array) {
                         for (var i = 0; i < relationshipArray.length; i++) {
-                            themeResObj[relationshipArray[i]["attrs"]["Id"]] = {
-                                "type": relationshipArray[i]["attrs"]["Type"].replace("http://schemas.openxmlformats.org/officeDocument/2006/relationships/", ""),
-                                "target": relationshipArray[i]["attrs"]["Target"].replace("../", "ppt/")
+                            themeResObj[relationshipArray[i]["attrs"]?.["Id"]] = {
+                                "type": relationshipArray[i]["attrs"]?.["Type"].replace("http://schemas.openxmlformats.org/officeDocument/2006/relationships/", ""),
+                                "target": relationshipArray[i]["attrs"]?.["Target"].replace("../", "ppt/")
                             };
                         }
                     } else {
                         //console.log("theme relationshipArray : ", relationshipArray)
-                        themeResObj[relationshipArray["attrs"]["Id"]] = {
-                            "type": relationshipArray["attrs"]["Type"].replace("http://schemas.openxmlformats.org/officeDocument/2006/relationships/", ""),
-                            "target": relationshipArray["attrs"]["Target"].replace("../", "ppt/")
+                        themeResObj[relationshipArray["attrs"]?.["Id"]] = {
+                            "type": relationshipArray["attrs"]?.["Type"].replace("http://schemas.openxmlformats.org/officeDocument/2006/relationships/", ""),
+                            "target": relationshipArray["attrs"]?.["Target"].replace("../", "ppt/")
                         };
                     }
                 }
@@ -398,16 +400,16 @@ export class PPTX {
                 let themeFilename = "";
                 if (relationshipArray.constructor === Array) {
                     for (var i = 0; i < relationshipArray.length; i++) {
-                        diagramResObj[relationshipArray[i]["attrs"]["Id"]] = {
-                            "type": relationshipArray[i]["attrs"]["Type"].replace("http://schemas.openxmlformats.org/officeDocument/2006/relationships/", ""),
-                            "target": relationshipArray[i]["attrs"]["Target"].replace("../", "ppt/")
+                        diagramResObj[relationshipArray[i]["attrs"]?.["Id"]] = {
+                            "type": relationshipArray[i]["attrs"]?.["Type"].replace("http://schemas.openxmlformats.org/officeDocument/2006/relationships/", ""),
+                            "target": relationshipArray[i]["attrs"]?.["Target"].replace("../", "ppt/")
                         };
                     }
                 } else {
                     //console.log("theme relationshipArray : ", relationshipArray)
-                    diagramResObj[relationshipArray["attrs"]["Id"]] = {
-                        "type": relationshipArray["attrs"]["Type"].replace("http://schemas.openxmlformats.org/officeDocument/2006/relationships/", ""),
-                        "target": relationshipArray["attrs"]["Target"].replace("../", "ppt/")
+                    diagramResObj[relationshipArray["attrs"]?.["Id"]] = {
+                        "type": relationshipArray["attrs"]?.["Type"].replace("http://schemas.openxmlformats.org/officeDocument/2006/relationships/", ""),
+                        "target": relationshipArray["attrs"]?.["Target"].replace("../", "ppt/")
                     };
                 }
             }
@@ -430,7 +432,6 @@ export class PPTX {
             "digramFileContent": digramFileContent,
             "diagramResObj": diagramResObj,
         };
-        console.log(warpObj)
         let bgResult = "";
         if (this.options.processFullTheme === true) {
             bgResult = await this.getBackground(warpObj, index);
@@ -557,15 +558,15 @@ export class PPTX {
         let rotStr = ""//;" border: 3px solid black;";
         let top, left, width, height, sType;
         if (xfrmNode !== undefined) {
-            let x = parseInt(xfrmNode["a:off"]["attrs"]["x"]) * this.slideFactor;
-            let y = parseInt(xfrmNode["a:off"]["attrs"]["y"]) * this.slideFactor;
-            let chx = parseInt(xfrmNode["a:chOff"]["attrs"]["x"]) * this.slideFactor;
-            let chy = parseInt(xfrmNode["a:chOff"]["attrs"]["y"]) * this.slideFactor;
-            let cx = parseInt(xfrmNode["a:ext"]["attrs"]["cx"]) * this.slideFactor;
-            let cy = parseInt(xfrmNode["a:ext"]["attrs"]["cy"]) * this.slideFactor;
-            let chcx = parseInt(xfrmNode["a:chExt"]["attrs"]["cx"]) * this.slideFactor;
-            let chcy = parseInt(xfrmNode["a:chExt"]["attrs"]["cy"]) * this.slideFactor;
-            let rotate = parseInt(xfrmNode["attrs"]["rot"])
+            let x = parseInt(xfrmNode["a:off"]["attrs"]?.["x"]) * this.slideFactor;
+            let y = parseInt(xfrmNode["a:off"]["attrs"]?.["y"]) * this.slideFactor;
+            let chx = parseInt(xfrmNode["a:chOff"]["attrs"]?.["x"]) * this.slideFactor;
+            let chy = parseInt(xfrmNode["a:chOff"]["attrs"]?.["y"]) * this.slideFactor;
+            let cx = parseInt(xfrmNode["a:ext"]["attrs"]?.["cx"]) * this.slideFactor;
+            let cy = parseInt(xfrmNode["a:ext"]["attrs"]?.["cy"]) * this.slideFactor;
+            let chcx = parseInt(xfrmNode["a:chExt"]["attrs"]?.["cx"]) * this.slideFactor;
+            let chcy = parseInt(xfrmNode["a:chExt"]["attrs"]?.["cy"]) * this.slideFactor;
+            let rotate = parseInt(xfrmNode["attrs"]?.["rot"])
             // angleToDegrees(getTextByPathList(slideXfrmNode, ["attrs", "rot"]));
             // let rotX = 0;
             // let rotY = 0;
@@ -699,10 +700,10 @@ export class PPTX {
 
     async processCxnSpNode(node: any, pNode: any, warpObj: any, source: any, sType: any) {
 
-        let id = node["p:nvCxnSpPr"]["p:cNvPr"]["attrs"]["id"];
-        let name = node["p:nvCxnSpPr"]["p:cNvPr"]["attrs"]["name"];
-        let idx = (node["p:nvCxnSpPr"]["p:nvPr"]["p:ph"] === undefined) ? undefined : node["p:nvSpPr"]["p:nvPr"]["p:ph"]["attrs"]["idx"];
-        let type = (node["p:nvCxnSpPr"]["p:nvPr"]["p:ph"] === undefined) ? undefined : node["p:nvSpPr"]["p:nvPr"]["p:ph"]["attrs"]["type"];
+        let id = node["p:nvCxnSpPr"]["p:cNvPr"]["attrs"]?.["id"];
+        let name = node["p:nvCxnSpPr"]["p:cNvPr"]["attrs"]?.["name"];
+        let idx = (node["p:nvCxnSpPr"]["p:nvPr"]["p:ph"] === undefined) ? undefined : node["p:nvSpPr"]["p:nvPr"]["p:ph"]["attrs"]?.["idx"];
+        let type = (node["p:nvCxnSpPr"]["p:nvPr"]["p:ph"] === undefined) ? undefined : node["p:nvSpPr"]["p:nvPr"]["p:ph"]["attrs"]?.["type"];
         //<p:cNvCxnSpPr>(<p:cNvCxnSpPr>, <a:endCxn>)
         let order = node["attrs"]?.["order"];
 
@@ -865,7 +866,7 @@ export class PPTX {
             let outerShdwNode = this.getTextByPathList(node, ["p:spPr", "a:effectLst", "a:outerShdw"]);
             if (outerShdwNode !== undefined) {
                 let chdwClrNode = this.getSolidFill(outerShdwNode, undefined, undefined, warpObj);
-                let outerShdwAttrs = outerShdwNode["attrs"];
+                let outerShdwAttrs = outerShdwNode["attrs"] ?? {};
 
                 //var algn = outerShdwAttrs["algn"];
                 let dir = (outerShdwAttrs["dir"]) ? (parseInt(outerShdwAttrs["dir"]) / 60000) : 0;
@@ -1499,8 +1500,9 @@ export class PPTX {
                 }
                 case "irregularSeal1":
                 case "irregularSeal2": {
+                    let d;
                     if (shapType == "irregularSeal1") {
-                        let d = "M" + w * 10800 / 21600 + "," + h * 5800 / 21600 +
+                        d = "M" + w * 10800 / 21600 + "," + h * 5800 / 21600 +
                             " L" + w * 14522 / 21600 + "," + 0 +
                             " L" + w * 14155 / 21600 + "," + h * 5325 / 21600 +
                             " L" + w * 18380 / 21600 + "," + h * 4457 / 21600 +
@@ -1526,7 +1528,7 @@ export class PPTX {
                             " L" + w * 8352 / 21600 + "," + h * 2295 / 21600 +
                             " z";
                     } else if (shapType == "irregularSeal2") {
-                        let d = "M" + w * 11462 / 21600 + "," + h * 4342 / 21600 +
+                        d = "M" + w * 11462 / 21600 + "," + h * 4342 / 21600 +
                             " L" + w * 14790 / 21600 + "," + 0 +
                             " L" + w * 14525 / 21600 + "," + h * 5777 / 21600 +
                             " L" + w * 18007 / 21600 + "," + h * 3172 / 21600 +
@@ -1948,12 +1950,12 @@ export class PPTX {
                     let hc = w / 2, vc = h / 2, wd2 = w / 2, hd2 = h / 2;
                     let adj = 19098 * this.slideFactor;
                     let cnstVal1 = 50000 * this.slideFactor;
-                    let shapAdjst = this.getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd"]);//[0]["attrs"]["fmla"];
+                    let shapAdjst = this.getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd"]);//[0]["attrs"]?.["fmla"];
                     //console.log("star4 node: ", node, "shapAdjst:", shapAdjst)
                     if (shapAdjst !== undefined) {
-                        let name = shapAdjst["attrs"]["name"];
+                        let name = shapAdjst["attrs"]?.["name"];
                         if (name == "adj") {
-                            adj = parseInt(shapAdjst["attrs"]["fmla"].substr(4)) * this.slideFactor;
+                            adj = parseInt(shapAdjst["attrs"]?.["fmla"].substr(4)) * this.slideFactor;
                             //min = 0
                             //max = 50000
                         }
@@ -1992,19 +1994,19 @@ export class PPTX {
                     let maxAdj = 50000 * this.slideFactor;
                     let cnstVal1 = 100000 * this.slideFactor;
                     //var radians = angle * (Math.PI / 180);
-                    let shapAdjst = this.getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd"]);//[0]["attrs"]["fmla"];
+                    let shapAdjst = this.getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd"]);//[0]["attrs"]?.["fmla"];
                     //console.log("star5 node: ", node, "shapAdjst:", shapAdjst)
                     if (shapAdjst !== undefined) {
                         Object.keys(shapAdjst).forEach((key) => {
-                            let name = shapAdjst[key]["attrs"]["name"];
+                            let name = shapAdjst[key]["attrs"]?.["name"];
                             if (name == "adj") {
-                                adj = parseInt(shapAdjst[key]["attrs"]["fmla"].substr(4)) * this.slideFactor;
+                                adj = parseInt(shapAdjst[key]["attrs"]?.["fmla"].substr(4)) * this.slideFactor;
                                 //min = 0
                                 //max = 50000
                             } else if (name == "hf") {
-                                hf = parseInt(shapAdjst[key]["attrs"]["fmla"].substr(4)) * this.slideFactor;
+                                hf = parseInt(shapAdjst[key]["attrs"]?.["fmla"].substr(4)) * this.slideFactor;
                             } else if (name == "vf") {
-                                vf = parseInt(shapAdjst[key]["attrs"]["fmla"].substr(4)) * this.slideFactor;
+                                vf = parseInt(shapAdjst[key]["attrs"]?.["fmla"].substr(4)) * this.slideFactor;
                             }
                         })
                     }
@@ -2061,17 +2063,17 @@ export class PPTX {
                     let hf = 115470 * this.slideFactor;
                     let maxAdj = 50000 * this.slideFactor;
                     let cnstVal1 = 100000 * this.slideFactor;
-                    let shapAdjst = this.getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd"]);//[0]["attrs"]["fmla"];
+                    let shapAdjst = this.getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd"]);//[0]["attrs"]?.["fmla"];
                     //console.log("star5 node: ", node, "shapAdjst:", shapAdjst)
                     if (shapAdjst !== undefined) {
                         Object.keys(shapAdjst).forEach((key) => {
-                            let name = shapAdjst[key]["attrs"]["name"];
+                            let name = shapAdjst[key]["attrs"]?.["name"];
                             if (name == "adj") {
-                                adj = parseInt(shapAdjst[key]["attrs"]["fmla"].substr(4)) * this.slideFactor;
+                                adj = parseInt(shapAdjst[key]["attrs"]?.["fmla"].substr(4)) * this.slideFactor;
                                 //min = 0
                                 //max = 50000
                             } else if (name == "hf") {
-                                hf = parseInt(shapAdjst[key]["attrs"]["fmla"].substr(4)) * this.slideFactor;
+                                hf = parseInt(shapAdjst[key]["attrs"]?.["fmla"].substr(4)) * this.slideFactor;
                             }
                         })
                     }
@@ -2122,19 +2124,19 @@ export class PPTX {
                     let maxAdj = 50000 * this.slideFactor;
                     let cnstVal1 = 100000 * this.slideFactor;
 
-                    let shapAdjst = this.getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd"]);//[0]["attrs"]["fmla"];
+                    let shapAdjst = this.getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd"]);//[0]["attrs"]?.["fmla"];
                     //console.log("star5 node: ", node, "shapAdjst:", shapAdjst)
                     if (shapAdjst !== undefined) {
                         Object.keys(shapAdjst).forEach((key) => {
-                            let name = shapAdjst[key]["attrs"]["name"];
+                            let name = shapAdjst[key]["attrs"]?.["name"];
                             if (name == "adj") {
-                                adj = parseInt(shapAdjst[key]["attrs"]["fmla"].substr(4)) * this.slideFactor;
+                                adj = parseInt(shapAdjst[key]["attrs"]?.["fmla"].substr(4)) * this.slideFactor;
                                 //min = 0
                                 //max = 50000
                             } else if (name == "hf") {
-                                hf = parseInt(shapAdjst[key]["attrs"]["fmla"].substr(4)) * this.slideFactor;
+                                hf = parseInt(shapAdjst[key]["attrs"]?.["fmla"].substr(4)) * this.slideFactor;
                             } else if (name == "vf") {
-                                vf = parseInt(shapAdjst[key]["attrs"]["fmla"].substr(4)) * this.slideFactor;
+                                vf = parseInt(shapAdjst[key]["attrs"]?.["fmla"].substr(4)) * this.slideFactor;
                             }
                         })
                     }
@@ -2204,12 +2206,12 @@ export class PPTX {
                     let adj = 37500 * this.slideFactor;
                     let maxAdj = 50000 * this.slideFactor;
                     let cnstVal1 = 100000 * this.slideFactor;
-                    let shapAdjst = this.getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd"]);//[0]["attrs"]["fmla"];
+                    let shapAdjst = this.getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd"]);//[0]["attrs"]?.["fmla"];
                     //console.log("star4 node: ", node, "shapAdjst:", shapAdjst)
                     if (shapAdjst !== undefined) {
-                        let name = shapAdjst["attrs"]["name"];
+                        let name = shapAdjst["attrs"]?.["name"];
                         if (name == "adj") {
-                            adj = parseInt(shapAdjst["attrs"]["fmla"].substr(4)) * this.slideFactor;
+                            adj = parseInt(shapAdjst["attrs"]?.["fmla"].substr(4)) * this.slideFactor;
                             //min = 0
                             //max = 50000
                         }
@@ -2265,17 +2267,17 @@ export class PPTX {
                     let hf = 105146 * this.slideFactor;
                     let maxAdj = 50000 * this.slideFactor;
                     let cnstVal1 = 100000 * this.slideFactor;
-                    let shapAdjst = this.getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd"]);//[0]["attrs"]["fmla"];
+                    let shapAdjst = this.getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd"]);//[0]["attrs"]?.["fmla"];
                     //console.log("star5 node: ", node, "shapAdjst:", shapAdjst)
                     if (shapAdjst !== undefined) {
                         Object.keys(shapAdjst).forEach((key) => {
-                            let name = shapAdjst[key]["attrs"]["name"];
+                            let name = shapAdjst[key]["attrs"]?.["name"];
                             if (name == "adj") {
-                                adj = parseInt(shapAdjst[key]["attrs"]["fmla"].substr(4)) * this.slideFactor;
+                                adj = parseInt(shapAdjst[key]["attrs"]?.["fmla"].substr(4)) * this.slideFactor;
                                 //min = 0
                                 //max = 50000
                             } else if (name == "hf") {
-                                hf = parseInt(shapAdjst[key]["attrs"]["fmla"].substr(4)) * this.slideFactor;
+                                hf = parseInt(shapAdjst[key]["attrs"]?.["fmla"].substr(4)) * this.slideFactor;
                             }
                         })
                     }
@@ -2341,12 +2343,12 @@ export class PPTX {
                     let hc = w / 2, vc = h / 2, wd2 = w / 2, hd2 = h / 2, hd4 = h / 4, wd4 = w / 4;
                     let adj = 37500 * this.slideFactor;
                     let maxAdj = 50000 * this.slideFactor;
-                    let shapAdjst = this.getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd"]);//[0]["attrs"]["fmla"];
+                    let shapAdjst = this.getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd"]);//[0]["attrs"]?.["fmla"];
                     //console.log("star4 node: ", node, "shapAdjst:", shapAdjst)
                     if (shapAdjst !== undefined) {
-                        let name = shapAdjst["attrs"]["name"];
+                        let name = shapAdjst["attrs"]?.["name"];
                         if (name == "adj") {
-                            adj = parseInt(shapAdjst["attrs"]["fmla"].substr(4)) * this.slideFactor;
+                            adj = parseInt(shapAdjst["attrs"]?.["fmla"].substr(4)) * this.slideFactor;
                             //min = 0
                             //max = 50000
                         }
@@ -2417,12 +2419,12 @@ export class PPTX {
                     let hc = w / 2, vc = h / 2, wd2 = w / 2, hd2 = h / 2;
                     let adj = 37500 * this.slideFactor;
                     let maxAdj = 50000 * this.slideFactor;
-                    let shapAdjst = this.getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd"]);//[0]["attrs"]["fmla"];
+                    let shapAdjst = this.getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd"]);//[0]["attrs"]?.["fmla"];
                     //console.log("star4 node: ", node, "shapAdjst:", shapAdjst)
                     if (shapAdjst !== undefined) {
-                        let name = shapAdjst["attrs"]["name"];
+                        let name = shapAdjst["attrs"]?.["name"];
                         if (name == "adj") {
-                            adj = parseInt(shapAdjst["attrs"]["fmla"].substr(4)) * this.slideFactor;
+                            adj = parseInt(shapAdjst["attrs"]?.["fmla"].substr(4)) * this.slideFactor;
                             //min = 0
                             //max = 50000
                         }
@@ -2524,12 +2526,12 @@ export class PPTX {
                     let hc = w / 2, vc = h / 2, wd2 = w / 2, hd2 = h / 2, hd4 = h / 4, wd4 = w / 4;
                     let adj = 37500 * this.slideFactor;
                     let maxAdj = 50000 * this.slideFactor;
-                    let shapAdjst = this.getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd"]);//[0]["attrs"]["fmla"];
+                    let shapAdjst = this.getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd"]);//[0]["attrs"]?.["fmla"];
                     //console.log("star4 node: ", node, "shapAdjst:", shapAdjst)
                     if (shapAdjst !== undefined) {
-                        let name = shapAdjst["attrs"]["name"];
+                        let name = shapAdjst["attrs"]?.["name"];
                         if (name == "adj") {
-                            adj = parseInt(shapAdjst["attrs"]["fmla"].substr(4)) * this.slideFactor;
+                            adj = parseInt(shapAdjst["attrs"]?.["fmla"].substr(4)) * this.slideFactor;
                         }
                     }
                     a = (adj < 0) ? 0 : (adj > maxAdj) ? maxAdj : adj;
@@ -2670,12 +2672,12 @@ export class PPTX {
                     let hc = w / 2, vc = h / 2, wd2 = w / 2, hd2 = h / 2, hd4 = h / 4, wd4 = w / 4;
                     let adj = 37500 * this.slideFactor;
                     let maxAdj = 50000 * this.slideFactor;
-                    let shapAdjst = this.getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd"]);//[0]["attrs"]["fmla"];
+                    let shapAdjst = this.getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd"]);//[0]["attrs"]?.["fmla"];
                     //console.log("star4 node: ", node, "shapAdjst:", shapAdjst)
                     if (shapAdjst !== undefined) {
-                        let name = shapAdjst["attrs"]["name"];
+                        let name = shapAdjst["attrs"]?.["name"];
                         if (name == "adj") {
-                            adj = parseInt(shapAdjst["attrs"]["fmla"].substr(4)) * this.slideFactor;
+                            adj = parseInt(shapAdjst["attrs"]?.["fmla"].substr(4)) * this.slideFactor;
                         }
                     }
                     a = (adj < 0) ? 0 : (adj > maxAdj) ? maxAdj : adj;
@@ -2872,8 +2874,8 @@ export class PPTX {
                         shapAdjst1 = this.getTextByPathList(shapAdjst, ["attrs", "fmla"]);
                         shapAdjst2 = shapAdjst1;
                         if (shapAdjst1 === undefined) {
-                            shapAdjst1 = shapAdjst[0]["attrs"]["fmla"];
-                            shapAdjst2 = shapAdjst[1]["attrs"]["fmla"];
+                            shapAdjst1 = shapAdjst[0]["attrs"]?.["fmla"];
+                            shapAdjst2 = shapAdjst[1]["attrs"]?.["fmla"];
                         }
                         if (shapAdjst1 !== undefined) {
                             adj1 = parseInt(shapAdjst1.substr(4)) / 60000;
@@ -7797,8 +7799,8 @@ export class PPTX {
             let pathLstNode = this.getTextByPathList(custShapType, ["a:pathLst"]);
             let pathNodes = this.getTextByPathList(pathLstNode, ["a:path"]);
             //var pathNode = this.getTextByPathList(pathLstNode, ["a:path", "attrs"]);
-            let maxX = parseInt(pathNodes["attrs"]["w"]);// * this.slideFactor;
-            let maxY = parseInt(pathNodes["attrs"]["h"]);// * this.slideFactor;
+            let maxX = parseInt(pathNodes["attrs"]?.["w"]);// * this.slideFactor;
+            let maxY = parseInt(pathNodes["attrs"]?.["h"]);// * this.slideFactor;
             let cX = (1 / maxX) * w;
             let cY = (1 / maxY) * h;
             //console.log("w = "+w+"\nh = "+h+"\nmaxX = "+maxX +"\nmaxY = " + maxY);
@@ -7826,11 +7828,14 @@ export class PPTX {
                 Object.keys(moveToNode).forEach((key) => {
                     let moveToPtNode = moveToNode[key]["a:pt"];
                     if (moveToPtNode !== undefined) {
+                        if (!Array.isArray(moveToPtNode)) {
+                            moveToPtNode = [moveToPtNode];
+                        }
                         Object.keys(moveToPtNode).forEach(function (key2) {
                             let ptObj: any = {};
                             let moveToNoPt = moveToPtNode[key2];
-                            let spX = moveToNoPt["attrs"]["x"];//parseInt(moveToNoPt["attrs", "x"]) * this.slideFactor;
-                            let spY = moveToNoPt["attrs"]["y"];//parseInt(moveToNoPt["attrs", "y"]) * this.slideFactor;
+                            let spX = moveToNoPt["attrs"]?.["x"];//parseInt(moveToNoPt["attrs", "x"]) * this.slideFactor;
+                            let spY = moveToNoPt["attrs"]?.["y"];//parseInt(moveToNoPt["attrs", "y"]) * this.slideFactor;
                             let ptOrdr = moveToNoPt["attrs"]?.["order"];
                             ptObj.type = "movto";
                             ptObj.order = ptOrdr;
@@ -7847,11 +7852,14 @@ export class PPTX {
                     Object.keys(lnToNodes).forEach((key) => {
                         let lnToPtNode = lnToNodes[key]["a:pt"];
                         if (lnToPtNode !== undefined) {
+                            if (!Array.isArray(lnToPtNode)) {
+                                lnToPtNode = [lnToPtNode];
+                            }
                             Object.keys(lnToPtNode).forEach(function (key2) {
                                 let ptObj: any = {};
                                 let lnToNoPt = lnToPtNode[key2];
-                                let ptX = lnToNoPt["attrs"]["x"];
-                                let ptY = lnToNoPt["attrs"]["y"];
+                                let ptX = lnToNoPt["attrs"]?.["x"];
+                                let ptY = lnToNoPt["attrs"]?.["y"];
                                 let ptOrdr = lnToNoPt["attrs"]?.["order"];
                                 ptObj.type = "lnto";
                                 ptObj.order = ptOrdr;
@@ -7885,8 +7893,8 @@ export class PPTX {
                         let pts_ary: any[] = [];
                         key2.forEach(function (pt: any) {
                             let pt_obj = {
-                                x: pt["attrs"]["x"],
-                                y: pt["attrs"]["y"]
+                                x: pt["attrs"]?.["x"],
+                                y: pt["attrs"]?.["y"]
                             }
                             pts_ary.push(pt_obj)
                         })
@@ -7896,7 +7904,7 @@ export class PPTX {
                 }
                 //a:arcTo
                 if (arcToNodes !== undefined) {
-                    let arcToNodesAttrs = arcToNodes["attrs"];
+                    let arcToNodesAttrs = arcToNodes["attrs"] ?? {};
                     let arcOrder = arcToNodesAttrs["order"];
                     let hR = arcToNodesAttrs["hR"];
                     let wR = arcToNodesAttrs["wR"];
@@ -7936,7 +7944,7 @@ export class PPTX {
                     // });
                     Object.keys(closeNode).forEach((key) => {
                         //console.log("custShapType >> closeNode: key: ", key);
-                        let clsAttrs = closeNode[key]["attrs"];
+                        let clsAttrs = closeNode[key]["attrs"] ?? {};
                         //var clsAttrs = closeNode["attrs"];
                         let clsOrder = clsAttrs["order"];
                         let ptObj: any = {};
@@ -8245,7 +8253,7 @@ export class PPTX {
         let mediaPicFlag = false;
         let order = node["attrs"]?.["order"];
 
-        let rid = node["p:blipFill"]["a:blip"]["attrs"]["r:embed"];
+        let rid = node["p:blipFill"]["a:blip"]["attrs"]?.["r:embed"];
         let resObj;
         if (source == "slideMasterBg") {
             resObj = warpObj["masterResObj"];
@@ -8280,7 +8288,7 @@ export class PPTX {
         let vdoRid, vdoFile, vdoFileExt, vdoMimeType, uInt8Array, blob, vdoBlob, mediaSupportFlag = false, isVdeoLink = false;
         let mediaProcess = this.options.mediaProcess;
         if (vdoNode !== undefined && mediaProcess) {
-            vdoRid = vdoNode["attrs"]["r:link"];
+            vdoRid = vdoNode["attrs"]?.["r:link"];
             vdoFile = resObj[vdoRid]["target"];
             let checkIfLink = this.IsVideoLink(vdoFile);
             if (checkIfLink) {
@@ -8309,17 +8317,17 @@ export class PPTX {
         let audioPlayerFlag = false;
         let audioObjc;
         if (audioNode !== undefined && mediaProcess) {
-            audioRid = audioNode["attrs"]["r:link"];
+            audioRid = audioNode["attrs"]?.["r:link"];
             audioFile = resObj[audioRid]["target"];
             audioFileExt = this.extractFileExtension(audioFile).toLowerCase();
             if (audioFileExt == "mp3" || audioFileExt == "wav" || audioFileExt == "ogg") {
                 uInt8ArrayAudio = await this.zip?.file(audioFile)?.async("arraybuffer");
                 blobAudio = new Blob([uInt8ArrayAudio!]);
                 audioBlob = URL.createObjectURL(blobAudio);
-                let cx = parseInt(xfrmNode["a:ext"]["attrs"]["cx"]) * 20;
-                let cy = xfrmNode["a:ext"]["attrs"]["cy"];
-                let x = parseInt(xfrmNode["a:off"]["attrs"]["x"]) / 2.5;
-                let y = xfrmNode["a:off"]["attrs"]["y"];
+                let cx = parseInt(xfrmNode["a:ext"]["attrs"]?.["cx"]) * 20;
+                let cy = xfrmNode["a:ext"]["attrs"]?.["cy"];
+                let x = parseInt(xfrmNode["a:off"]["attrs"]?.["x"]) / 2.5;
+                let y = xfrmNode["a:off"]["attrs"]?.["y"];
                 audioObjc = {
                     "a:ext": {
                         "attrs": {
@@ -8507,9 +8515,9 @@ export class PPTX {
             text += "<div style='display: flex;" + sld_prg_width + sld_prg_height + "' class='slide-prgrph " + this.getHorizontalAlign(pNode, textBodyNode, idx, type, prg_dir, warpObj) + " " +
                 prg_dir + " " + cssName + "' >";
             let buText_ary = this.genBuChar(pNode, i, spNode, textBodyNode, pFontStyle, idx, type, warpObj);
-            let isBullate = (buText_ary[0] !== undefined && buText_ary[0] !== null && buText_ary[0] != "") ? true : false;
-            let bu_width = (buText_ary[1] !== undefined && buText_ary[1] !== null && isBullate) ? buText_ary[1].toString() + buText_ary[2] : 0;
-            text += (buText_ary[0] !== undefined) ? buText_ary[0] : "";
+            let isBullate = buText_ary ? true : false;
+            let bu_width = (buText_ary && buText_ary[1] !== undefined && buText_ary[1] !== null && isBullate) ? buText_ary[1] + buText_ary[2] : 0;
+            text += buText_ary ? buText_ary[0] : "";
             //get text margin 
             let margin_ary = this.getPregraphMargn(pNode, idx, type, isBullate, warpObj);
             let margin = margin_ary[0];
@@ -8525,27 +8533,17 @@ export class PPTX {
             if (rNode === undefined && pNode !== undefined) {
                 // without r
                 let prgr_text = this.genSpanElement(pNode, undefined, spNode, textBodyNode, pFontStyle, slideLayoutSpNode, idx, type, 1, warpObj, isBullate);
-                // if (isBullate) {
-                    // TODO: why add to body and hidden
-                    // let txt_obj = $(prgr_text)
-                    //     .css({ 'position': 'absolute', 'float': 'left', 'white-space': 'nowrap', 'visibility': 'hidden' })
-                    //     .appendTo($('body'));
-                    // total_text_len += txt_obj.outerWidth();
-                    // txt_obj.remove();
-                // }
+                if (isBullate) {
+                    total_text_len += this.estimateWidth(prgr_text);
+                }
                 prgrph_text += prgr_text;
             } else if (rNode !== undefined) {
                 // with multi r
                 for (var j = 0; j < rNode.length; j++) {
                     let prgr_text = this.genSpanElement(rNode[j], j, pNode, textBodyNode, pFontStyle, slideLayoutSpNode, idx, type, rNode.length, warpObj, isBullate);
-                    // TODO: why
-                    // if (isBullate) {
-                    //     let txt_obj = $(prgr_text)
-                    //         .css({ 'position': 'absolute', 'float': 'left', 'white-space': 'nowrap', 'visibility': 'hidden' })
-                    //         .appendTo($('body'));
-                    //     total_text_len += txt_obj.outerWidth();
-                    //     txt_obj.remove();
-                    // }
+                    if (isBullate) {
+                        total_text_len += this.estimateWidth(prgr_text);
+                    }
                     prgrph_text += prgr_text;
                 }
             }
@@ -8554,7 +8552,6 @@ export class PPTX {
             if (isBullate) {
                 //get prg_width_node if there is a bulltes
                 //console.log("total_text_len: ", total_text_len, "prg_width_node:", prg_width_node)
-
                 if (total_text_len < prg_width_node) {
                     prg_width_node = total_text_len + (bu_width as number);
                 }
@@ -8569,7 +8566,19 @@ export class PPTX {
         return text;
     }
 
-    genBuChar(node: any, i: number, spNode: any, textBodyNode: any, pFontStyle: any, idx: number | undefined, type: string | undefined, warpObj: any) {
+    estimateWidth(prgr_text: string) {
+        const template = document.createElement('div');
+        template.innerHTML = prgr_text;
+        template.style.position = 'absolute';
+        template.style.whiteSpace = 'nowrap';
+        template.style.visibility = 'hidden';
+        document.body.appendChild(template);
+        const width = template.offsetWidth;
+        document.body.removeChild(template);
+        return width;
+    }
+
+    genBuChar(node: any, i: number, spNode: any, textBodyNode: any, pFontStyle: any, idx: number | undefined, type: string | undefined, warpObj: any): ([string, number, number] | undefined) {
         //console.log("genBuChar node: ", node, ", spNode: ", spNode, ", pFontStyle: ", pFontStyle, "type", type)
         ///////////////////////////////////////Amir///////////////////////////////
         let sldMstrTxtStyles = warpObj["slideMasterTextStyles"];
@@ -8591,7 +8600,7 @@ export class PPTX {
             color_tye = dfltBultColor[2];
             dfltBultSize = this.getFontSize(rNode, textBodyNode, pFontStyle, lvl, type, warpObj);
         } else {
-            return "";
+            return;
         }
         //console.log("Bullet Size: " + bultSize);
 
@@ -8602,7 +8611,7 @@ export class PPTX {
         let pPrNode = node["a:pPr"];
         let BullNONE = this.getTextByPathList(pPrNode, ["a:buNone"]);
         if (BullNONE !== undefined) {
-            return "";
+            return;
         }
 
         let buType = "TYPE_NONE";
@@ -8647,7 +8656,7 @@ export class PPTX {
             if (lstStyle !== undefined) {
                 BullNONE = this.getTextByPathList(lstStyle, [lvlStr, "a:buNone"]);
                 if (BullNONE !== undefined) {
-                    return "";
+                    return;
                 }
                 buType = "TYPE_NONE";
                 buChar = this.getTextByPathList(lstStyle, [lvlStr, "a:buChar", "attrs", "char"]);
@@ -8672,7 +8681,7 @@ export class PPTX {
             if (pPrNodeLaout !== undefined) {
                 BullNONE = this.getTextByPathList(pPrNodeLaout, ["a:buNone"]);
                 if (BullNONE !== undefined) {
-                    return "";
+                    return;
                 }
                 buType = "TYPE_NONE";
                 buChar = this.getTextByPathList(pPrNodeLaout, ["a:buChar", "attrs", "char"]);
@@ -8694,7 +8703,7 @@ export class PPTX {
                 if (pPrNodeMaster !== undefined) {
                     BullNONE = this.getTextByPathList(pPrNodeMaster, ["a:buNone"]);
                     if (BullNONE !== undefined) {
-                        return "";
+                        return;
                     }
                     buType = "TYPE_NONE";
                     buChar = this.getTextByPathList(pPrNodeMaster, ["a:buChar", "attrs", "char"]);
@@ -9536,15 +9545,15 @@ export class PPTX {
         let getColsGrid = this.getTextByPathList(node, ["a:graphic", "a:graphicData", "a:tbl", "a:tblGrid", "a:gridCol"]);
         let tblDir = "";
         if (getTblPr !== undefined) {
-            let isRTL = getTblPr["attrs"]["rtl"];
+            let isRTL = getTblPr["attrs"]?.["rtl"];
             tblDir = (isRTL == 1 ? "dir=rtl" : "dir=ltr");
         }
-        let firstRowAttr = getTblPr["attrs"]["firstRow"]; //associated element <a:firstRow> in the table styles
-        let firstColAttr = getTblPr["attrs"]["firstCol"]; //associated element <a:firstCol> in the table styles
-        let lastRowAttr = getTblPr["attrs"]["lastRow"]; //associated element <a:lastRow> in the table styles
-        let lastColAttr = getTblPr["attrs"]["lastCol"]; //associated element <a:lastCol> in the table styles
-        let bandRowAttr = getTblPr["attrs"]["bandRow"]; //associated element <a:band1H>, <a:band2H> in the table styles
-        let bandColAttr = getTblPr["attrs"]["bandCol"]; //associated element <a:band1V>, <a:band2V> in the table styles
+        let firstRowAttr = getTblPr["attrs"]?.["firstRow"]; //associated element <a:firstRow> in the table styles
+        let firstColAttr = getTblPr["attrs"]?.["firstCol"]; //associated element <a:firstCol> in the table styles
+        let lastRowAttr = getTblPr["attrs"]?.["lastRow"]; //associated element <a:lastRow> in the table styles
+        let lastColAttr = getTblPr["attrs"]?.["lastCol"]; //associated element <a:lastCol> in the table styles
+        let bandRowAttr = getTblPr["attrs"]?.["bandRow"]; //associated element <a:band1H>, <a:band2H> in the table styles
+        let bandColAttr = getTblPr["attrs"]?.["bandCol"]; //associated element <a:band1V>, <a:band2V> in the table styles
         //console.log("getTblPr: ", getTblPr);
         let tblStylAttrObj = {
             isFrstRowAttr: (firstRowAttr !== undefined && firstRowAttr == "1") ? 1 : 0,
@@ -9562,12 +9571,12 @@ export class PPTX {
             if (tbleStylList !== undefined) {
                 if (Array.isArray(tbleStylList)) {
                     for (var k = 0; k < (tbleStylList as any[]).length; k++) {
-                        if (tbleStylList[k]["attrs"]["styleId"] == tbleStyleId) {
+                        if (tbleStylList[k]["attrs"]?.["styleId"] == tbleStyleId) {
                             thisTblStyle = tbleStylList[k];
                         }
                     }
                 } else {
-                    if (tbleStylList["attrs"]["styleId"] == tbleStyleId) {
+                    if (tbleStylList["attrs"]?.["styleId"] == tbleStyleId) {
                         thisTblStyle = tbleStylList;
                     }
                 }
@@ -9615,7 +9624,7 @@ export class PPTX {
         let rowSpanAry: any[] = [];
         for (var i = 0; i < trNodes.length; i++) {
             //////////////rows Style ////////////Amir
-            let rowHeightParam = trNodes[i]["attrs"]["h"];
+            let rowHeightParam = trNodes[i]["attrs"]?.["h"];
             let rowHeight = 0;
             let rowsStyl = "";
             if (rowHeightParam !== undefined) {
@@ -10097,7 +10106,7 @@ export class PPTX {
             this.getPosition(xfrmNode, node, undefined, undefined) + this.getSize(xfrmNode, undefined, undefined) +
             " z-index: " + order + ";'></div>";
 
-        let rid = node["a:graphic"]["a:graphicData"]["c:chart"]["attrs"]["r:id"];
+        let rid = node["a:graphic"]["a:graphicData"]["c:chart"]["attrs"]?.["r:id"];
         let refName = warpObj["slideResObj"][rid]["target"];
         let content = this.readXmlFile(refName);
         let plotArea = this.getTextByPathList(content, ["c:chartSpace", "c:chart", "c:plotArea"]);
@@ -10267,26 +10276,26 @@ export class PPTX {
         }
         let offX = 0, offY = 0;
         let grpX = 0, grpY = 0;
-        let xfrmNode = pNode["p:grpSpPr"]["a:xfrm"];
+        let xfrmNode = pNode["p:grpSpPr"]?.["a:xfrm"];
         if (sType == "group") {
             let grpXfrmNode = this.getTextByPathList(pNode, ["p:grpSpPr", "a:xfrm"]);
             if (xfrmNode !== undefined) {
-                grpX = parseInt(grpXfrmNode["a:off"]["attrs"]["x"]) * this.slideFactor;
-                grpY = parseInt(grpXfrmNode["a:off"]["attrs"]["y"]) * this.slideFactor;
-                // let chx = parseInt(grpXfrmNode["a:chOff"]["attrs"]["x"]) * this.slideFactor;
-                // let chy = parseInt(grpXfrmNode["a:chOff"]["attrs"]["y"]) * this.slideFactor;
-                // let cx = parseInt(grpXfrmNode["a:ext"]["attrs"]["cx"]) * this.slideFactor;
-                // let cy = parseInt(grpXfrmNode["a:ext"]["attrs"]["cy"]) * this.slideFactor;
-                // let chcx = parseInt(grpXfrmNode["a:chExt"]["attrs"]["cx"]) * this.slideFactor;
-                // let chcy = parseInt(grpXfrmNode["a:chExt"]["attrs"]["cy"]) * this.slideFactor;
-                // let rotate = parseInt(grpXfrmNode["attrs"]["rot"])
+                grpX = parseInt(grpXfrmNode["a:off"]["attrs"]?.["x"]) * this.slideFactor;
+                grpY = parseInt(grpXfrmNode["a:off"]["attrs"]?.["y"]) * this.slideFactor;
+                // let chx = parseInt(grpXfrmNode["a:chOff"]["attrs"]?.["x"]) * this.slideFactor;
+                // let chy = parseInt(grpXfrmNode["a:chOff"]["attrs"]?.["y"]) * this.slideFactor;
+                // let cx = parseInt(grpXfrmNode["a:ext"]["attrs"]?.["cx"]) * this.slideFactor;
+                // let cy = parseInt(grpXfrmNode["a:ext"]["attrs"]?.["cy"]) * this.slideFactor;
+                // let chcx = parseInt(grpXfrmNode["a:chExt"]["attrs"]?.["cx"]) * this.slideFactor;
+                // let chcy = parseInt(grpXfrmNode["a:chExt"]["attrs"]?.["cy"]) * this.slideFactor;
+                // let rotate = parseInt(grpXfrmNode["attrs"]?.["rot"])
             }
         }
         if (sType == "group-rotate" && pNode["p:grpSpPr"] !== undefined) {
-            // let ox = parseInt(xfrmNode["a:off"]["attrs"]["x"]) * this.slideFactor;
-            // let oy = parseInt(xfrmNode["a:off"]["attrs"]["y"]) * this.slideFactor;
-            let chx = parseInt(xfrmNode["a:chOff"]["attrs"]["x"]) * this.slideFactor;
-            let chy = parseInt(xfrmNode["a:chOff"]["attrs"]["y"]) * this.slideFactor;
+            // let ox = parseInt(xfrmNode["a:off"]["attrs"]?.["x"]) * this.slideFactor;
+            // let oy = parseInt(xfrmNode["a:off"]["attrs"]?.["y"]) * this.slideFactor;
+            let chx = parseInt(xfrmNode["a:chOff"]["attrs"]?.["x"]) * this.slideFactor;
+            let chy = parseInt(xfrmNode["a:chOff"]["attrs"]?.["y"]) * this.slideFactor;
 
             offX = chx;
             offY = chy;
@@ -10921,7 +10930,7 @@ export class PPTX {
         let oGlowStr = "";
         if (txtGlowNode !== undefined) {
             let glowClr = this.getSolidFill(txtGlowNode, undefined, undefined, warpObj);
-            let rad = (txtGlowNode["attrs"]["rad"]) ? (txtGlowNode["attrs"]["rad"] * this.slideFactor) : 0;
+            let rad = (txtGlowNode["attrs"]?.["rad"]) ? (txtGlowNode["attrs"]?.["rad"] * this.slideFactor) : 0;
             oGlowStr = "0 0 " + rad + "px #" + glowClr +
                 ", 0 0 " + rad + "px #" + glowClr +
                 ", 0 0 " + rad + "px #" + glowClr +
@@ -10952,7 +10961,7 @@ export class PPTX {
             //https://designshack.net/articles/css/12-fun-css-text-shadows-you-can-copy-and-paste/
 
             let shadowClr = this.getSolidFill(txtShadow, undefined, undefined, warpObj);
-            let outerShdwAttrs = txtShadow["attrs"];
+            let outerShdwAttrs = txtShadow["attrs"] ?? {};
             // algn: "bl"
             // dir: "2640000"
             // dist: "38100"
@@ -11026,7 +11035,7 @@ export class PPTX {
         let fontSize = undefined;
         let sz, kern;
         if (node["a:rPr"] !== undefined) {
-            fontSize = parseInt(node["a:rPr"]["attrs"]["sz"]) / 100;
+            fontSize = parseInt(node["a:rPr"]["attrs"]?.["sz"]) / 100;
         }
         if (isNaN(fontSize!) || fontSize === undefined && node["a:fld"] !== undefined) {
             sz = this.getTextByPathList(node["a:fld"], ["a:rPr", "attrs", "sz"]);
@@ -11129,18 +11138,18 @@ export class PPTX {
     }
 
     getFontBold(node: any) {
-        return (node["a:rPr"] !== undefined && node["a:rPr"]["attrs"]["b"] === "1") ? "bold" : "inherit";
+        return (node["a:rPr"] !== undefined && node["a:rPr"]["attrs"]?.["b"] === "1") ? "bold" : "inherit";
     }
 
     getFontItalic(node: any) {
-        return (node["a:rPr"] !== undefined && node["a:rPr"]["attrs"]["i"] === "1") ? "italic" : "inherit";
+        return (node["a:rPr"] !== undefined && node["a:rPr"]["attrs"]?.["i"] === "1") ? "italic" : "inherit";
     }
 
     getFontDecoration(node: any) {
         ///////////////////////////////Amir///////////////////////////////
         if (node["a:rPr"] !== undefined) {
-            let underLine = node["a:rPr"]["attrs"]["u"] !== undefined ? node["a:rPr"]["attrs"]["u"] : "none";
-            let strikethrough = node["a:rPr"]["attrs"]["strike"] !== undefined ? node["a:rPr"]["attrs"]["strike"] : 'noStrike';
+            let underLine = node["a:rPr"]["attrs"]?.["u"] !== undefined ? node["a:rPr"]["attrs"]?.["u"] : "none";
+            let strikethrough = node["a:rPr"]["attrs"]?.["strike"] !== undefined ? node["a:rPr"]["attrs"]?.["strike"] : 'noStrike';
             //console.log("strikethrough: "+strikethrough);
 
             if (underLine != "none" && strikethrough == "noStrike") {
@@ -11156,7 +11165,7 @@ export class PPTX {
             return "inherit";
         }
         /////////////////////////////////////////////////////////////////
-        //return (node["a:rPr"] !== undefined && node["a:rPr"]["attrs"]["u"] === "sng") ? "underline" : "inherit";
+        //return (node["a:rPr"] !== undefined && node["a:rPr"]["attrs"]?.["u"] === "sng") ? "underline" : "inherit";
     }
     ////////////////////////////////////Amir/////////////////////////////////////
     getTextHorizontalAlign(node: any, pNode: any, type: string | undefined, warpObj: any) {
@@ -11560,7 +11569,7 @@ export class PPTX {
             //     let schemeClr = this.getTextByPathList(bgRef, ["a:schemeClr", "attrs", "val"]);
             //     phClr = getSchemeColorFromTheme("a:" + schemeClr, slideMasterContent, undefined); //#...
             // }
-            let idx = Number(bgRef["attrs"]["idx"]);
+            let idx = Number(bgRef["attrs"]?.["idx"]);
 
 
             if (idx == 0 || idx == 1000) {
@@ -11652,7 +11661,7 @@ export class PPTX {
                 console.log("slideLayoutContent: bgRef", bgRef)
                 //bgcolor = "background: white;";
                 let phClr = this.getSolidFill(bgRef, clrMapOvr, undefined, warpObj);
-                let idx = Number(bgRef["attrs"]["idx"]);
+                let idx = Number(bgRef["attrs"]?.["idx"]);
                 //console.log("phClr=", phClr, "idx=", idx)
 
                 if (idx == 0 || idx == 1000) {
@@ -11749,7 +11758,7 @@ export class PPTX {
 
                     //     phClr = getSchemeColorFromTheme("a:" + schemeClr, slideMasterContent, undefined); //#...
                     // }
-                    let idx = Number(bgRef["attrs"]["idx"]);
+                    let idx = Number(bgRef["attrs"]?.["idx"]);
                     //console.log("phClr=", phClr, "idx=", idx)
 
                     if (idx == 0 || idx == 1000) {
@@ -11849,7 +11858,7 @@ export class PPTX {
             let lin = grdFill["a:lin"];
             let rot = 90;
             if (lin !== undefined) {
-                rot = this.angleToDegrees(lin["attrs"]["ang"]);// + 270;
+                rot = this.angleToDegrees(lin["attrs"]?.["ang"]);// + 270;
                 //console.log("rot: ", rot)
                 rot = rot + 90;
             }
@@ -11984,7 +11993,7 @@ export class PPTX {
         //a:stretch => a:fillRect =>attrs (l:-17000, r:-17000)
         let stretch = this.getTextByPathList(bgPr, ["a:blipFill", "a:stretch"]);
         if (stretch !== undefined) {
-            let fillRect = this.getTextByPathList(stretch, ["a:fillRect", "attrs"]);
+            let fillRect = this.getTextByPathList(stretch, ["a:fillRect"]);
             //console.log("getBgPicFill=>bgPr: ", bgPr)
             // let top = fillRect["t"], right = fillRect["r"], bottom = fillRect["b"], left = fillRect["l"];
             prop_style += "background-repeat: no-repeat;";
@@ -12177,7 +12186,7 @@ export class PPTX {
         let lin = node["a:lin"];
         let rot = 0;
         if (lin !== undefined) {
-            rot = this.angleToDegrees(lin["attrs"]["ang"]) + 90;
+            rot = this.angleToDegrees(lin["attrs"]?.["ang"]) + 90;
         }
         return {
             "color": color_ary,
@@ -12190,7 +12199,7 @@ export class PPTX {
         //TODO - Image Properties - Tile, Stretch, or Display Portion of Image
         //(http://officeopenxml.com/drwPic-tile.php)
         let img;
-        let rId = node["a:blip"]["attrs"]["r:embed"];
+        let rId = node["a:blip"]["attrs"]?.["r:embed"];
         let imgPath;
         //console.log("getPicFill(...) rId: ", rId, ", warpObj: ", warpObj, ", type: ", type)
         if (type == "slideBg" || type == "slide") {
@@ -12235,7 +12244,7 @@ export class PPTX {
         let fgColor, bgColor, prst = "";
         let bgClr = node["a:bgClr"];
         let fgClr = node["a:fgClr"];
-        prst = node["attrs"]["prst"];
+        prst = node["attrs"]?.["prst"];
         fgColor = this.getSolidFill(fgClr, undefined, undefined, warpObj);
         bgColor = this.getSolidFill(bgClr, undefined, undefined, warpObj);
         //var angl_ary = getAnglefromParst(prst);
@@ -12543,7 +12552,7 @@ export class PPTX {
         } else if (node["a:scrgbClr"] !== undefined) {
             clrNode = node["a:scrgbClr"];
             //<a:scrgbClr r="50%" g="50%" b="50%"/>  //Need to test/////////////////////////////////////////////
-            let defBultColorVals = clrNode["attrs"];
+            let defBultColorVals = clrNode["attrs"] ?? {};
             let red = (defBultColorVals["r"].indexOf("%") != -1) ? defBultColorVals["r"].split("%").shift() : defBultColorVals["r"];
             let green = (defBultColorVals["g"].indexOf("%") != -1) ? defBultColorVals["g"].split("%").shift() : defBultColorVals["g"];
             let blue = (defBultColorVals["b"].indexOf("%") != -1) ? defBultColorVals["b"].split("%").shift() : defBultColorVals["b"];
@@ -12554,13 +12563,13 @@ export class PPTX {
         } else if (node["a:prstClr"] !== undefined) {
             clrNode = node["a:prstClr"];
             //<a:prstClr val="black"/>  //Need to test/////////////////////////////////////////////
-            let prstClr = this.getTextByPathList(clrNode, ["attrs", "val"]); //node["a:prstClr"]["attrs"]["val"];
+            let prstClr = this.getTextByPathList(clrNode, ["attrs", "val"]); //node["a:prstClr"]["attrs"]?.["val"];
             color = this.getColorName2Hex(prstClr);
             //console.log("blip prstClr: ", prstClr, " => hexClr: ", color);
         } else if (node["a:hslClr"] !== undefined) {
             clrNode = node["a:hslClr"];
             //<a:hslClr hue="14400000" sat="100%" lum="50%"/>  //Need to test/////////////////////////////////////////////
-            let defBultColorVals = clrNode["attrs"];
+            let defBultColorVals = clrNode["attrs"] ?? {};
             let hue = Number(defBultColorVals["hue"]) / 100000;
             let sat = Number((defBultColorVals["sat"].indexOf("%") != -1) ? defBultColorVals["sat"].split("%").shift() : defBultColorVals["sat"]) / 100;
             let lum = Number((defBultColorVals["lum"].indexOf("%") != -1) ? defBultColorVals["lum"].split("%").shift() : defBultColorVals["lum"]) / 100;
@@ -13058,12 +13067,12 @@ export class PPTX {
                 let rowNames: any = {};
                 if (this.getTextByPathList(innerNode, ["c:cat", "c:strRef", "c:strCache", "c:pt"]) !== undefined) {
                     this.eachElement(innerNode["c:cat"]["c:strRef"]["c:strCache"]["c:pt"], (innerNode: any) => {
-                        rowNames[innerNode["attrs"]["idx"]] = innerNode["c:v"];
+                        rowNames[innerNode["attrs"]?.["idx"]] = innerNode["c:v"];
                         return "";
                     });
                 } else if (this.getTextByPathList(innerNode, ["c:cat", "c:numRef", "c:numCache", "c:pt"]) !== undefined) {
                     this.eachElement(innerNode["c:cat"]["c:numRef"]["c:numCache"]["c:pt"], (innerNode: any) => {
-                        rowNames[innerNode["attrs"]["idx"]] = innerNode["c:v"];
+                        rowNames[innerNode["attrs"]?.["idx"]] = innerNode["c:v"];
                         return "";
                     });
                 }
@@ -13071,7 +13080,7 @@ export class PPTX {
                 // Value
                 if (this.getTextByPathList(innerNode, ["c:val", "c:numRef", "c:numCache", "c:pt"]) !== undefined) {
                     this.eachElement(innerNode["c:val"]["c:numRef"]["c:numCache"]["c:pt"], (innerNode: any) => {
-                        dataRow.push({ x: innerNode["attrs"]["idx"], y: parseFloat(innerNode["c:v"]) });
+                        dataRow.push({ x: innerNode["attrs"]?.["idx"], y: parseFloat(innerNode["c:v"]) });
                         return "";
                     });
                 }
@@ -13789,9 +13798,7 @@ export class PPTX {
             roman = "",
             i = 3;
         while (i--)
-            // TODO fix type
-            // @ts-ignore
-            roman = (key[+digits.pop() + (i * 10)] || "") + roman;
+            roman = (key[+digits.pop()! + (i * 10)] || "") + roman;
         return Array(+digits.join("") + 1).join("M") + roman;
     }
 
