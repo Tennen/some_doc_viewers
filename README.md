@@ -46,7 +46,7 @@ graph TD
 
 ## PPTX Conversion and pptxjs
 
-The PPTX to HTML conversion process is implemented in the `PPTX` class within the `src/helpers/pptx/PPTX.ts` file. This implementation is a rewrite of the original pptxjs library, using modern TypeScript. While it's inspired by the core concepts of pptxjs, it has been rebuilt from the ground up to leverage TypeScript's features and improve maintainability.
+The PPTX to HTML conversion process is implemented in the `PPTX` class within the `src/helpers/pptx/PPTX.ts` file. This implementation is a rewrite of the original pptxjs library, using modern TypeScript.
 
 ## Usage
 
