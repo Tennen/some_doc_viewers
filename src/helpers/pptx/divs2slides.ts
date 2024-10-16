@@ -303,6 +303,11 @@ class Divs2Slides {
   }
 }
 
+// original slidemode css
+// if (this.options.slideMode && this.options.slideType == "divs2slidesjs") {
+//     cssText += "#all_slides_warpper{margin-right: auto;margin-left: auto;padding-top:10px;width: " + this.basicInfo?.width + "px;}\n";
+// }
+
 // Usage:
 // const container = document.getElementById('slideContainer');
 // const options = { /* your options here */ };

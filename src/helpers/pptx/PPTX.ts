@@ -13,11 +13,6 @@ import { angleToDegrees, applyHueMod, applySatMod, applyTint, applyShade, applyL
 interface PPTXOptions {
     url?: string;
     file?: ArrayBuffer;
-    slideMode?: boolean;
-    slideType?: string;
-    slideModeConfig?: any;
-    revealjsPath?: string;
-    revealjsConfig?: any;
     processFullTheme?: boolean | string;
     incSlide?: {
         width: number;
@@ -28,11 +23,6 @@ interface PPTXOptions {
 
 export class PPTX {
     options: PPTXOptions = {
-        slideMode: false,
-        slideType: "",
-        slideModeConfig: {},
-        revealjsPath: "",
-        revealjsConfig: {},
         processFullTheme: true,
         incSlide: {
             width: 0,
@@ -82,10 +72,6 @@ export class PPTX {
 
     updateProgress(percent: number) {
         // TODO progress implementation
-    }
-
-    initSlideMode() {
-        // TODO slide mode implementation
     }
 
     async getThumbnail() {
@@ -393,12 +379,7 @@ export class PPTX {
             bgColor = await this.getSlideBackgroundFill(warpObj, index);
         }
 
-        let result = "";
-        if (this.options.slideMode && this.options.slideType == "revealjs") {
-            result = "<section class='slide' style='width:" + this.basicInfo?.width + "px; height:" + this.basicInfo?.height + "px;" + bgColor + "'>"
-        } else {
-            result = "<div class='slide' style='width:" + this.basicInfo?.width + "px; height:" + this.basicInfo?.height + "px;" + bgColor + "'>"
-        }
+        let result = "<div class='slide' style='width:" + this.basicInfo?.width + "px; height:" + this.basicInfo?.height + "px;" + bgColor + "'>"
         result += bgResult;
         for (var nodeKey in nodes) {
             if (nodes[nodeKey].constructor === Array) {
@@ -409,15 +390,7 @@ export class PPTX {
                 result += await this.processNodesInSlide(nodeKey, nodes[nodeKey], nodes, warpObj, "slide");
             }
         }
-        if (index == 11) {
-        console.log(result);
-        }
-        if (this.options.slideMode && this.options.slideType == "revealjs") {
-            return result + "</section>";
-        } else {
-            return result + "</div>";
-        }
-
+        return result + "</div>";
     }
 
     indexNodes(content: any) {
@@ -9468,26 +9441,15 @@ export class PPTX {
 
     genGlobalCSS() {
         let cssText = "";
-        //console.log("styleTable: ", styleTable)
         for (var key in this.styleTable) {
             let tagname = "";
-            // if (settings.slideMode && settings.slideType == "revealjs") {
-            //     tagname = "section";
-            // } else {
-            //     tagname = "div";
-            // }
             //ADD suffix
             cssText += tagname + " ." + this.styleTable[key]["name"] +
                 ((this.styleTable[key]["suffix"]) ? this.styleTable[key]["suffix"] : "") +
-                "{" + this.styleTable[key]["text"] + "}\n"; //section > div
+                "{" + this.styleTable[key]["text"] + "}\n";
         }
         //cssText += " .slide{margin-bottom: 5px;}\n"; // TODO
 
-        if (this.options.slideMode && this.options.slideType == "divs2slidesjs") {
-            //divId
-            //console.log("slideWidth: ", slideWidth)
-            cssText += "#all_slides_warpper{margin-right: auto;margin-left: auto;padding-top:10px;width: " + this.basicInfo?.width + "px;}\n"; // TODO
-        }
         return cssText;
     }
 
