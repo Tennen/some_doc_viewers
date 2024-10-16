@@ -1,13 +1,15 @@
 // PPTX.ts is a rewrite of the original pptxjs library.
 
 import JSZip from 'jszip';
-import { XMLParser } from 'fast-xml-parser';
 import { dingbatUnicode } from './dingbatUnicode';
 import _ from 'lodash';
 import tinycolor from 'tinycolor2';
 import './assets/pptxjs.less';
-import { base64ArrayBuffer, escapeHtml, getNumTypeNum } from './utils';
+import { escapeHtml } from './utils/text';
+import { getNumTypeNum } from './utils/numeric';
+import { base64ArrayBuffer } from './utils/image';
 import { extractFileExtension, isVideoLink } from './utils/file';
+import { xmlParser } from './utils/xml';
 import { angleToDegrees, applyHueMod, applySatMod, applyTint, applyShade, applyLumOff, applyLumMod, rtlLangs, toHex, colorMap, hslToRgb } from './utils/color';
 import './assets/d3.min.js';
 import './assets/nv.d3.min.js';
@@ -35,7 +37,6 @@ export class PPTX {
     }
 
     zip: JSZip | null = null;
-    appVersion: number | null = null;
     tableStyles = null;
     slideFactor = 96 / 914400;
     fontSizeFactor = 4 / 3.2;
@@ -139,16 +140,10 @@ export class PPTX {
         return post_ary;
     }
 
-    async readXmlFile(filename: string, isSlideContent?: boolean) {
+    async readXmlFile(filename: string) {
         try {
-            let fileContent = await this.zip?.file(filename)?.async("text");
-            if (isSlideContent && this.appVersion! <= 12) {
-                //< office2007
-                //remove "<![CDATA[ ... ]]>" tag
-                fileContent = fileContent?.replace(/<!\[CDATA\[(.*?)\]\]>/g, '$1');
-            }
-            const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: "", attributesGroupName: "attrs", ignorePiTags: true, trimValues: false });
-            return parser.parse(fileContent);
+            const fileContent = await this.zip?.file(filename)?.async("text");
+            return xmlParser.parse(fileContent);
         } catch (e) {
             console.log("error readXmlFile: the file '", filename, "' not exit")
             return null;
@@ -163,6 +158,7 @@ export class PPTX {
             this.readXmlFile("docProps/app.xml"),
             this.readXmlFile("ppt/presentation.xml"),
         ]);
+        console.log(ContentTypesData);
         let subObj = ContentTypesData["Types"]["Override"];
         let slidesLocArray = [];
         let slideLayoutsLocArray = [];
@@ -177,8 +173,6 @@ export class PPTX {
                 default:
             }
         }
-        let appVersionStr = app?.["Properties"]?.["AppVersion"]
-        this.appVersion = appVersionStr ? parseInt(appVersionStr) : Number.POSITIVE_INFINITY;
         let sldSzAttrs = presentation["p:presentation"]["p:sldSz"]["attrs"];
         let sldSzWidth = parseInt(sldSzAttrs["cx"]);
         let sldSzHeight = parseInt(sldSzAttrs["cy"]);
@@ -264,7 +258,7 @@ export class PPTX {
 
         let slideMasterResFilename = masterFilename.replace("slideMasters/slideMaster", "slideMasters/_rels/slideMaster") + ".rels";
         const [slideContent, slideMasterContent, slideMasterResContent] = await Promise.all([
-            this.readXmlFile(sldFileName, true),
+            this.readXmlFile(sldFileName),
             // Open slideMasterXX.xml
             this.readXmlFile(masterFilename),
             //Open slideMasterXX.xml.rels

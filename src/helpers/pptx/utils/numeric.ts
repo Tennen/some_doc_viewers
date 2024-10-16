@@ -86,6 +86,17 @@ export const getNumTypeNum = (numTyp: string, num: number) => {
     return rtrnNum;
 }
 
+export const alphaNumeric = (num: number, upperLower: string) => {
+    num = Number(num) - 1;
+    let aNum = "";
+    if (upperLower == "upperCase") {
+        aNum = (((num / 26 >= 1) ? String.fromCharCode(num / 26 + 64) : '') + String.fromCharCode(num % 26 + 65)).toUpperCase();
+    } else if (upperLower == "lowerCase") {
+        aNum = (((num / 26 >= 1) ? String.fromCharCode(num / 26 + 64) : '') + String.fromCharCode(num % 26 + 65)).toLowerCase();
+    }
+    return aNum;
+}
+
 const romanizeValues = ["", "C", "CC", "CCC", "CD", "D", "DC", "DCC", "DCCC", "CM",
     "", "X", "XX", "XXX", "XL", "L", "LX", "LXX", "LXXX", "XC",
     "", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX"];
@@ -99,66 +110,4 @@ export const romanize = (num: number) => {
     while (i--)
         roman = (romanizeValues[+digits.pop()! + (i * 10)] || "") + roman;
     return Array(+digits.join("") + 1).join("M") + roman;
-}
-
-export const alphaNumeric = (num: number, upperLower: string) => {
-    num = Number(num) - 1;
-    let aNum = "";
-    if (upperLower == "upperCase") {
-        aNum = (((num / 26 >= 1) ? String.fromCharCode(num / 26 + 64) : '') + String.fromCharCode(num % 26 + 65)).toUpperCase();
-    } else if (upperLower == "lowerCase") {
-        aNum = (((num / 26 >= 1) ? String.fromCharCode(num / 26 + 64) : '') + String.fromCharCode(num % 26 + 65)).toLowerCase();
-    }
-    return aNum;
-}
-
-const base64Encodings = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
-
-export const base64ArrayBuffer = (arrayBuffer: ArrayBuffer) => {
-    let base64 = '';
-    let bytes = new Uint8Array(arrayBuffer);
-    let byteLength = bytes.byteLength;
-    let byteRemainder = byteLength % 3;
-    let mainLength = byteLength - byteRemainder;
-
-    let a, b, c, d;
-    let chunk;
-
-    for (var i = 0; i < mainLength; i = i + 3) {
-        chunk = (bytes[i] << 16) | (bytes[i + 1] << 8) | bytes[i + 2];
-        a = (chunk & 16515072) >> 18;
-        b = (chunk & 258048) >> 12;
-        c = (chunk & 4032) >> 6;
-        d = chunk & 63;
-        base64 += base64Encodings[a] + base64Encodings[b] + base64Encodings[c] + base64Encodings[d];
-    }
-
-    if (byteRemainder == 1) {
-        chunk = bytes[mainLength];
-        a = (chunk & 252) >> 2;
-        b = (chunk & 3) << 4;
-        base64 += base64Encodings[a] + base64Encodings[b] + '==';
-    } else if (byteRemainder == 2) {
-        chunk = (bytes[mainLength] << 8) | bytes[mainLength + 1];
-        a = (chunk & 64512) >> 10;
-        b = (chunk & 1008) >> 4;
-        c = (chunk & 15) << 2;
-        base64 += base64Encodings[a] + base64Encodings[b] + base64Encodings[c] + '=';
-    }
-
-    return base64;
-}
-
-const htmlStringMap: {[key: string]: string} = {
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    '"': '&quot;',
-    "'": '&#039;',
-    '\t': '&nbsp;&nbsp;&nbsp;&nbsp;',
-    '\s': '&nbsp;'
-};
-
-export const escapeHtml = (text: string) => {
-    return text.replace(/[&<>"'\t\s]|/g, (match) => htmlStringMap[match] || match);
 }
