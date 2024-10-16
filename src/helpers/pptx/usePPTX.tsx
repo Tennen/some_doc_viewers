@@ -1,27 +1,25 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { RefObject, useEffect, useMemo, useRef, useState } from 'react';
 import { PPTX } from './PPTX';
-import { convertPPTXDataToJSX } from './jsxConverter';
 import '../../styles/pptx.less';
 
 interface Options {
     url?: string;
     file?: ArrayBuffer;
-    slideMode?: boolean;
-    slideType?: string;
+    containerRef?: RefObject<HTMLElement>;
 }
 
 export const usePPTX = (options: Options) => {
-    const [pptxRes, setPPTXRes] = useState<any>();
-    const pptxInstance = useRef(new PPTX(options));
+    const pptxRef = useRef<PPTX | null>(null);
     useEffect(() => {
-        pptxInstance.current.convert().then(result => {
-            setPPTXRes(result)
+        pptxRef.current = new PPTX({
+            file: options.file,
+            url: options.url,
         });
-    }, []);
-
-    const JSXResult = useMemo(() => {
-        return convertPPTXDataToJSX(pptxRes, pptxInstance.current)
-    }, [pptxRes]);
-
-    return JSXResult;
+    }, [])
+    useEffect(() => {
+        if (!options.containerRef?.current) {
+            return;
+        }
+        pptxRef.current?.render(options.containerRef?.current);
+    }, [options.containerRef?.current]);
 }

@@ -18,7 +18,7 @@ const archaicNumbers = (arr: [number | RegExp, string][]) => {
     };
 }
 
-const hebrew2Minus = archaicNumbers([
+export const hebrew2Minus = archaicNumbers([
     [1000, ''],
     [400, 'ת'],
     [300, 'ש'],

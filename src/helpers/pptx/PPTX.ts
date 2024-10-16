@@ -6,9 +6,11 @@ import { dingbatUnicode } from './dingbatUnicode';
 import _ from 'lodash';
 import tinycolor from 'tinycolor2';
 import './assets/pptxjs.less';
-import { base64ArrayBuffer, escapeHtml } from './utils';
+import { base64ArrayBuffer, escapeHtml, getNumTypeNum } from './utils';
 import { extractFileExtension, isVideoLink } from './utils/file';
 import { angleToDegrees, applyHueMod, applySatMod, applyTint, applyShade, applyLumOff, applyLumMod, rtlLangs, toHex, colorMap, hslToRgb } from './utils/color';
+import './assets/d3.min.js';
+import './assets/nv.d3.min.js';
 
 interface PPTXOptions {
     url?: string;
@@ -19,6 +21,7 @@ interface PPTXOptions {
         height: number;
     };
     mediaProcess?: boolean;
+    container?: HTMLElement;
 }
 
 export class PPTX {
@@ -48,10 +51,15 @@ export class PPTX {
 
     chartID = 0;
     MsgQueue: any[] = [];
+    // html result of convert
+    htmlResultArray: { type: string, data: string, slide_num?: number, file_name?: string }[] = [];
     isDone = false;
+    postRenderDone = false;
+    convertPromise: Promise<any> | null = null;
 
     constructor(options: PPTXOptions) {
         _.assign(this.options, options);
+        this.convertPromise = this.convert();
     }
 
     async convert() {
@@ -70,10 +78,6 @@ export class PPTX {
         }
     }
 
-    updateProgress(percent: number) {
-        // TODO progress implementation
-    }
-
     async getThumbnail() {
         const thumbnailFile = this.zip?.file("docProps/thumbnail.jpeg");
         if (thumbnailFile) {
@@ -83,14 +87,14 @@ export class PPTX {
     }
 
     async convertPPTX() {
-        let post_ary = [];
-        let dateBefore = new Date();
+        const post_ary = [];
         const [thubmnail, basicInfo, tableStyles] = await Promise.all([
             this.getThumbnail(),
             this.getBasicInfo(),
             this.readXmlFile("ppt/tableStyles.xml"),
         ])
         this.basicInfo = basicInfo;
+        this.tableStyles = tableStyles;
         let numOfSlides = basicInfo["slides"].length;
         for (var i = 0; i < numOfSlides; i++) {
             let filename = basicInfo["slides"][i];
@@ -129,6 +133,8 @@ export class PPTX {
             "type": "globalCSS",
             "data": this.genGlobalCSS()
         });
+
+        this.htmlResultArray = post_ary;
 
         return post_ary;
     }
@@ -13312,61 +13318,176 @@ export class PPTX {
         //return [w, h];
     }
 
-    // setNumericBullets(elem: string[]) {
-    //     let prgrphs_arry = elem;
-    //     for (var i = 0; i < prgrphs_arry.length; i++) {
-    //         let buSpan = $(prgrphs_arry[i]).find('.numeric-bullet-style');
-    //         if (buSpan.length > 0) {
-    //             //console.log("DIV-"+i+":");
-    //             let prevBultTyp = "";
-    //             let prevBultLvl = "";
-    //             let buletIndex = 0;
-    //             let tmpArry = new Array();
-    //             let tmpArryIndx = 0;
-    //             let buletTypSrry = new Array();
-    //             for (var j = 0; j < buSpan.length; j++) {
-    //                 let bult_typ = $(buSpan[j]).data("bulltname");
-    //                 let bult_lvl = $(buSpan[j]).data("bulltlvl");
-    //                 //console.log(j+" - "+bult_typ+" lvl: "+bult_lvl );
-    //                 if (buletIndex == 0) {
-    //                     prevBultTyp = bult_typ;
-    //                     prevBultLvl = bult_lvl;
-    //                     tmpArry[tmpArryIndx] = buletIndex;
-    //                     buletTypSrry[tmpArryIndx] = bult_typ;
-    //                     buletIndex++;
-    //                 } else {
-    //                     if (bult_typ == prevBultTyp && bult_lvl == prevBultLvl) {
-    //                         prevBultTyp = bult_typ;
-    //                         prevBultLvl = bult_lvl;
-    //                         buletIndex++;
-    //                         tmpArry[tmpArryIndx] = buletIndex;
-    //                         buletTypSrry[tmpArryIndx] = bult_typ;
-    //                     } else if (bult_typ != prevBultTyp && bult_lvl == prevBultLvl) {
-    //                         prevBultTyp = bult_typ;
-    //                         prevBultLvl = bult_lvl;
-    //                         tmpArryIndx++;
-    //                         tmpArry[tmpArryIndx] = buletIndex;
-    //                         buletTypSrry[tmpArryIndx] = bult_typ;
-    //                         buletIndex = 1;
-    //                     } else if (bult_typ != prevBultTyp && Number(bult_lvl) > Number(prevBultLvl)) {
-    //                         prevBultTyp = bult_typ;
-    //                         prevBultLvl = bult_lvl;
-    //                         tmpArryIndx++;
-    //                         tmpArry[tmpArryIndx] = buletIndex;
-    //                         buletTypSrry[tmpArryIndx] = bult_typ;
-    //                         buletIndex = 1;
-    //                     } else if (bult_typ != prevBultTyp && Number(bult_lvl) < Number(prevBultLvl)) {
-    //                         prevBultTyp = bult_typ;
-    //                         prevBultLvl = bult_lvl;
-    //                         tmpArryIndx--;
-    //                         buletIndex = tmpArry[tmpArryIndx] + 1;
-    //                     }
-    //                 }
-    //                 //console.log(buletTypSrry[tmpArryIndx]+" - "+buletIndex);
-    //                 let numIdx = this.getNumTypeNum(buletTypSrry[tmpArryIndx], buletIndex);
-    //                 $(buSpan[j]).html(numIdx);
-    //             }
-    //         }
-    //     }
-    // }
+    processMsgQueue() {
+        for (var i = 0; i < this.MsgQueue.length; i++) {
+            this.processSingleMsg(this.MsgQueue[i].data);
+        }
+    }
+
+    processSingleMsg(d: any) {
+        var chartID = d.chartID;
+        var chartType = d.chartType;
+        var chartData = d.chartData;
+
+        var data = [];
+
+        var chart = null;
+        const nv = window.nv;
+        const d3 = window.d3;
+        switch (chartType) {
+            case "lineChart":
+                data = chartData;
+                chart = nv.models.lineChart()
+                    .useInteractiveGuideline(true);
+                chart.xAxis.tickFormat(function (d) { return chartData[0].xlabels[d] || d; });
+                break;
+            case "barChart":
+                data = chartData;
+                chart = nv.models.multiBarChart();
+                chart.xAxis.tickFormat(function (d) { return chartData[0].xlabels[d] || d; });
+                break;
+            case "pieChart":
+            case "pie3DChart":
+                if (chartData.length > 0) {
+                    data = chartData[0].values;
+                }
+                chart = nv.models.pieChart();
+                break;
+            case "areaChart":
+                data = chartData;
+                chart = nv.models.stackedAreaChart()
+                    .clipEdge(true)
+                    .useInteractiveGuideline(true);
+                chart.xAxis.tickFormat(function (d) { return chartData[0].xlabels[d] || d; });
+                break;
+            case "scatterChart":
+
+                for (var i = 0; i < chartData.length; i++) {
+                    var arr = [];
+                    for (var j = 0; j < chartData[i].length; j++) {
+                        arr.push({ x: j, y: chartData[i][j] });
+                    }
+                    data.push({ key: 'data' + (i + 1), values: arr });
+                }
+
+                //data = chartData;
+                chart = nv.models.scatterChart()
+                    .showDistX(true)
+                    .showDistY(true)
+                    .color(d3.scale.category10().range());
+                chart.xAxis.axisLabel('X').tickFormat(d3.format('.02f'));
+                chart.yAxis.axisLabel('Y').tickFormat(d3.format('.02f'));
+                break;
+            default:
+        }
+
+        if (chart !== null) {
+            d3.select("#" + chartID)
+                .append("svg")
+                .datum(data)
+                .transition().duration(500)
+                .call(chart);
+
+            nv.utils.windowResize(chart.update);
+            this.isDone = true;
+        }
+    }
+
+    setNumericBullets(elem: NodeListOf<Element>) {
+        let prgrphs_arry = elem;
+        for (var i = 0; i < prgrphs_arry.length; i++) {
+            let buSpan = prgrphs_arry[i].querySelectorAll('.numeric-bullet-style');
+            if (buSpan.length > 0) {
+                //console.log("DIV-"+i+":");
+                let prevBultTyp = "";
+                let prevBultLvl = "";
+                let buletIndex = 0;
+                let tmpArry = new Array();
+                let tmpArryIndx = 0;
+                let buletTypSrry = new Array();
+                for (var j = 0; j < buSpan.length; j++) {
+                    let bult_typ = buSpan[j].getAttribute("data-bulltname") ?? '';
+                    let bult_lvl = buSpan[j].getAttribute("data-bulltlvl") ?? '';
+                    //console.log(j+" - "+bult_typ+" lvl: "+bult_lvl );
+                    if (buletIndex == 0) {
+                        prevBultTyp = bult_typ;
+                        prevBultLvl = bult_lvl;
+                        tmpArry[tmpArryIndx] = buletIndex;
+                        buletTypSrry[tmpArryIndx] = bult_typ;
+                        buletIndex++;
+                    } else {
+                        if (bult_typ == prevBultTyp && bult_lvl == prevBultLvl) {
+                            prevBultTyp = bult_typ;
+                            prevBultLvl = bult_lvl;
+                            buletIndex++;
+                            tmpArry[tmpArryIndx] = buletIndex;
+                            buletTypSrry[tmpArryIndx] = bult_typ;
+                        } else if (bult_typ != prevBultTyp && bult_lvl == prevBultLvl) {
+                            prevBultTyp = bult_typ;
+                            prevBultLvl = bult_lvl;
+                            tmpArryIndx++;
+                            tmpArry[tmpArryIndx] = buletIndex;
+                            buletTypSrry[tmpArryIndx] = bult_typ;
+                            buletIndex = 1;
+                        } else if (bult_typ != prevBultTyp && Number(bult_lvl) > Number(prevBultLvl)) {
+                            prevBultTyp = bult_typ;
+                            prevBultLvl = bult_lvl;
+                            tmpArryIndx++;
+                            tmpArry[tmpArryIndx] = buletIndex;
+                            buletTypSrry[tmpArryIndx] = bult_typ;
+                            buletIndex = 1;
+                        } else if (bult_typ != prevBultTyp && Number(bult_lvl) < Number(prevBultLvl)) {
+                            prevBultTyp = bult_typ;
+                            prevBultLvl = bult_lvl;
+                            tmpArryIndx--;
+                            buletIndex = tmpArry[tmpArryIndx] + 1;
+                        }
+                    }
+                    //console.log(buletTypSrry[tmpArryIndx]+" - "+buletIndex);
+                    let numIdx = getNumTypeNum(buletTypSrry[tmpArryIndx], buletIndex);
+                    buSpan[j].innerHTML = numIdx;
+                }
+            }
+        }
+    }
+
+    async render(container: HTMLElement) {
+        if (container) {
+            this.options.container = container;
+        }
+        if (!this.options.container) {
+            throw new Error("Container is not set");
+        }
+        await this.convertPromise;
+        let htmlString = "";
+        const result = this.htmlResultArray;
+        for (var i = 0; i < result.length; i++) {
+            switch (result[i]["type"]) {
+                case "slide":
+                    htmlString += (result[i]["data"]);
+                    break;
+                case "pptx-thumb":
+                    //$("#pptx-thumb").attr("src", "data:image/jpeg;base64," +result[i]["data"]);
+                    break;
+                case "globalCSS":
+                    //console.log(result[i]["data"])
+                    htmlString += ("<style>" + result[i]["data"] + "</style>");
+                    break;
+                default:
+            }
+        }
+        this.options.container.style.height = (this.basicInfo?.height ?? 0) * (this.basicInfo?.slides.length ?? 0) + "px";
+        this.options.container.innerHTML = htmlString;
+        this.postRender();
+    }
+
+    // d3 and nv d3 are initialized after the PPTX is rendered
+    // so we need to call this function after the PPTX is rendered
+    postRender() {
+        if (this.postRenderDone) return;
+        this.processMsgQueue();
+        this.setNumericBullets(document.querySelectorAll(".block"));
+        this.setNumericBullets(document.querySelectorAll("table td"));
+        this.postRenderDone = true;
+    }
 }
