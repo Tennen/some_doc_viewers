@@ -27,7 +27,7 @@ interface PPTXOptions {
 }
 
 export class PPTX {
-    options: PPTXOptions = {
+    private options: PPTXOptions = {
         processFullTheme: true,
         incSlide: {
             width: 0,
@@ -36,27 +36,27 @@ export class PPTX {
         mediaProcess: false,
     }
 
-    zip: JSZip | null = null;
-    tableStyles = null;
-    slideFactor = 96 / 914400;
-    fontSizeFactor = 4 / 3.2;
-    basicInfo: {
+    private zip: JSZip | null = null;
+    private tableStyles = null;
+    private slideFactor = 96 / 914400;
+    private fontSizeFactor = 4 / 3.2;
+    private basicInfo: {
         slides: string[];
         slideLayouts: string[];
         defaultTextStyle: any;
         width: number;
         height: number;
     } | null = null;
-    isFirstBr = false;
-    styleTable: Record<string, any> = {};
+    private isFirstBr = false;
+    private styleTable: Record<string, any> = {};
 
-    chartID = 0;
-    MsgQueue: any[] = [];
+    private chartID = 0;
+    private MsgQueue: any[] = [];
     // html result of convert
     htmlResultArray: { type: string, data: string, slide_num?: number, file_name?: string }[] = [];
     isDone = false;
-    postRenderDone = false;
-    convertPromise: Promise<any> | null = null;
+    private postRenderDone = false;
+    private convertPromise: Promise<any> | null = null;
 
     constructor(options: PPTXOptions) {
         _.assign(this.options, options);
@@ -79,7 +79,7 @@ export class PPTX {
         }
     }
 
-    async getThumbnail() {
+    private async getThumbnail() {
         const thumbnailFile = this.zip?.file("docProps/thumbnail.jpeg");
         if (thumbnailFile) {
             return await thumbnailFile.async('base64');
@@ -87,7 +87,7 @@ export class PPTX {
         return null;
     }
 
-    async convertPPTX() {
+    private async convertPPTX() {
         const post_ary = [];
         const [thubmnail, basicInfo, tableStyles] = await Promise.all([
             this.getThumbnail(),
@@ -140,7 +140,7 @@ export class PPTX {
         return post_ary;
     }
 
-    async readXmlFile(filename: string) {
+    private async readXmlFile(filename: string) {
         try {
             const fileContent = await this.zip?.file(filename)?.async("text");
             return xmlParser.parse(fileContent);
@@ -151,7 +151,7 @@ export class PPTX {
 
     }
 
-    async getBasicInfo() {
+    private async getBasicInfo() {
         //get app version
         const [ContentTypesData, app, presentation] = await Promise.all([
             this.readXmlFile("[Content_Types].xml"),
@@ -186,7 +186,7 @@ export class PPTX {
         };
     }
 
-    async processSingleSlide(sldFileName: string, index: number) {
+    private async processSingleSlide(sldFileName: string, index: number) {
         let resName = sldFileName.replace("slides/slide", "slides/_rels/slide") + ".rels";
         let resContent = await this.readXmlFile(resName);
         let RelationshipArray = resContent["Relationships"]["Relationship"];
@@ -393,7 +393,7 @@ export class PPTX {
         return result + "</div>";
     }
 
-    indexNodes(content: any) {
+    private indexNodes(content: any) {
 
         let keys = Object.keys(content);
         let spTreeNode = content[keys[0]]["p:cSld"]["p:spTree"];
@@ -449,7 +449,7 @@ export class PPTX {
         return { "idTable": idTable, "idxTable": idxTable, "typeTable": typeTable };
     }
 
-    async processNodesInSlide(nodeKey: any, nodeValue: any, nodes: any, warpObj: any, source: any, sType?: any) {
+    private async processNodesInSlide(nodeKey: any, nodeValue: any, nodes: any, warpObj: any, source: any, sType?: any) {
         let result = "";
 
         switch (nodeKey) {
@@ -479,7 +479,7 @@ export class PPTX {
 
     }
 
-    async processGroupSpNode(node: any, warpObj: any, source: any) {
+    private async processGroupSpNode(node: any, warpObj: any, source: any) {
         //console.log("processGroupSpNode: node: ", node)
         let xfrmNode = this.getTextByPathList(node, ["p:grpSpPr", "a:xfrm"]);
         let rotStr = ""//;" border: 3px solid black;";
@@ -558,7 +558,7 @@ export class PPTX {
         return result;
     }
 
-    async processSpNode(node: any, pNode: any, warpObj: any, source: any, sType: any) {
+    private async processSpNode(node: any, pNode: any, warpObj: any, source: any, sType: any) {
 
         /*
         *  958    <xsd:complexType name="CT_GvmlShape">
@@ -625,7 +625,7 @@ export class PPTX {
         return await this.genShape(node, pNode, slideLayoutSpNode, slideMasterSpNode, id, name, idx, type, order, warpObj, isUserDrawnBg, sType, source);
     }
 
-    async processCxnSpNode(node: any, pNode: any, warpObj: any, source: any, sType: any) {
+    private async processCxnSpNode(node: any, pNode: any, warpObj: any, source: any, sType: any) {
 
         let id = node["p:nvCxnSpPr"]["p:cNvPr"]["attrs"]?.["id"];
         let name = node["p:nvCxnSpPr"]["p:cNvPr"]["attrs"]?.["name"];
@@ -637,7 +637,7 @@ export class PPTX {
         return await this.genShape(node, pNode, undefined, undefined, id, name, idx, type, order, warpObj, undefined, sType, source);
     }
 
-    async genShape(node: any, pNode: any, slideLayoutSpNode: any, slideMasterSpNode: any, id: any, name: any, idx: any, type: any, order: any, warpObj: any, isUserDrawnBg: any, sType: any, source: any) {
+    private async genShape(node: any, pNode: any, slideLayoutSpNode: any, slideMasterSpNode: any, id: any, name: any, idx: any, type: any, order: any, warpObj: any, isUserDrawnBg: any, sType: any, source: any) {
         //var dltX = 0;
         //var dltY = 0;
         let xfrmList = ["p:spPr", "a:xfrm"];
@@ -8013,7 +8013,7 @@ export class PPTX {
         return result;
     }
 
-    shapePie(H: number | undefined, w: number, adj1: number | undefined, adj2: number | undefined, isClose: boolean | undefined) {
+    private shapePie(H: number | undefined, w: number, adj1: number | undefined, adj2: number | undefined, isClose: boolean | undefined) {
         // @ts-ignore
         let pieVal = parseInt(adj2);
         // @ts-ignore
@@ -8049,7 +8049,7 @@ export class PPTX {
 
         return [d, rot];
     }
-    shapeGear(w: number, h: number, points: number) {
+    private shapeGear(w: number, h: number, points: number) {
         let innerRadius = h;//gear.innerRadius;
         let outerRadius = 1.5 * innerRadius;
         let cx = outerRadius,//Math.max(innerRadius, outerRadius),                   // center x
@@ -8089,7 +8089,7 @@ export class PPTX {
         d += " ";
         return d;
     }
-    shapeArc(cX: number, cY: number, rX: number, rY: number, stAng: number, endAng: number, isClose: boolean): string {
+    private shapeArc(cX: number, cY: number, rX: number, rY: number, stAng: number, endAng: number, isClose: boolean): string {
         let dData;
         let angle = stAng;
         if (endAng >= stAng) {
@@ -8118,7 +8118,7 @@ export class PPTX {
         dData += (isClose ? " z" : "");
         return dData!;
     }
-    shapeSnipRoundRect(w: number, h: number, adj1: number, adj2: number, shapeType: string, adjType: string | undefined) {
+    private shapeSnipRoundRect(w: number, h: number, adj1: number, adj2: number, shapeType: string, adjType: string | undefined) {
         /* 
         shapeType: snip,round
         adjType: cornr1,cornr2,cornrAll,diag
@@ -8174,7 +8174,7 @@ export class PPTX {
         return points;
     }
     */
-    async processPicNode(node: any, warpObj: any, source: string, sType: string) {
+    private async processPicNode(node: any, warpObj: any, source: string, sType: string) {
         //console.log("processPicNode node:", node, "source:", source, "sType:", sType, "warpObj;", warpObj);
         let rtrnData = "";
         let mediaPicFlag = false;
@@ -8308,7 +8308,7 @@ export class PPTX {
         return rtrnData;
     }
 
-    async processGraphicFrameNode(node: any, warpObj: any, source: string, sType?: string) {
+    private async processGraphicFrameNode(node: any, warpObj: any, source: string, sType?: string) {
 
         let result = "";
         let graphicTypeUri = this.getTextByPathList(node, ["a:graphic", "a:graphicData", "attrs", "uri"]);
@@ -8341,7 +8341,7 @@ export class PPTX {
         return result;
     }
 
-    processSpPrNode(node: any, warpObj: any) {
+    private processSpPrNode(node: any, warpObj: any) {
 
         /*
         * 2241 <xsd:complexType name="CT_ShapeProperties">
@@ -8362,7 +8362,7 @@ export class PPTX {
         // TODO:
     }
 
-    genTextBody(textBodyNode: any, spNode: any, slideLayoutSpNode: any, slideMasterSpNode: any, type: string | undefined, idx: number | undefined, warpObj: any, tbl_col_width?: number) {
+    private genTextBody(textBodyNode: any, spNode: any, slideLayoutSpNode: any, slideMasterSpNode: any, type: string | undefined, idx: number | undefined, warpObj: any, tbl_col_width?: number) {
         let text = "";
         let slideMasterTextStyles = warpObj["slideMasterTextStyles"];
 
@@ -8493,7 +8493,7 @@ export class PPTX {
         return text;
     }
 
-    estimateWidth(prgr_text: string) {
+    private estimateWidth(prgr_text: string) {
         const template = document.createElement('div');
         template.innerHTML = prgr_text;
         template.style.position = 'absolute';
@@ -8505,7 +8505,7 @@ export class PPTX {
         return width;
     }
 
-    genBuChar(node: any, i: number, spNode: any, textBodyNode: any, pFontStyle: any, idx: number | undefined, type: string | undefined, warpObj: any): ([string, number, number] | undefined) {
+    private genBuChar(node: any, i: number, spNode: any, textBodyNode: any, pFontStyle: any, idx: number | undefined, type: string | undefined, warpObj: any): ([string, number, number] | undefined) {
         //console.log("genBuChar node: ", node, ", spNode: ", spNode, ", pFontStyle: ", pFontStyle, "type", type)
         ///////////////////////////////////////Amir///////////////////////////////
         let sldMstrTxtStyles = warpObj["slideMasterTextStyles"];
@@ -8977,7 +8977,7 @@ export class PPTX {
         //console.log("genBuChar: width: ", $(bullet).outerWidth())
         return [bullet, margin_val, font_val];//$(bullet).outerWidth()];
     }
-    getHtmlBullet(typefaceNode: any, buChar: string) {
+    private getHtmlBullet(typefaceNode: any, buChar: string) {
         //http://www.alanwood.net/demos/wingdings.html
         //not work for IE11
         //console.log("genBuChar typefaceNode:", typefaceNode, " buChar:", buChar, "charCodeAt:", buChar.charCodeAt(0))
@@ -9007,7 +9007,7 @@ export class PPTX {
                 return "&#" + (buChar.charCodeAt(0)) + ";";
         }
     }
-    getDingbatToUnicode(typefaceNode: any, buChar: string) {
+    private getDingbatToUnicode(typefaceNode: any, buChar: string) {
         if (dingbatUnicode) {
             let dingbatCode = buChar.codePointAt(0)! & 0xFFF;
             let char_unicode = null;
@@ -9026,7 +9026,7 @@ export class PPTX {
         }
     }
 
-    getLayoutAndMasterNode(node: any, idx: number | undefined, type: string | undefined, warpObj: any) {
+    private getLayoutAndMasterNode(node: any, idx: number | undefined, type: string | undefined, warpObj: any) {
         let pPrNodeLaout, pPrNodeMaster;
         let pPrNode = node["a:pPr"];
         //lvl
@@ -9069,7 +9069,7 @@ export class PPTX {
             "nodeMaster": pPrNodeMaster
         };
     }
-    genSpanElement(node: any, rIndex: number | undefined, pNode: any, textBodyNode: any, pFontStyle: any, slideLayoutSpNode: any, idx: number | undefined, type: string | undefined, rNodeLength: number, warpObj: any, isBullate: boolean) {
+    private genSpanElement(node: any, rIndex: number | undefined, pNode: any, textBodyNode: any, pFontStyle: any, slideLayoutSpNode: any, idx: number | undefined, type: string | undefined, rNodeLength: number, warpObj: any, isBullate: boolean) {
         //https://codepen.io/imdunn/pen/GRgwaye ?
         let text_style = "";
         let lstStyle = textBodyNode["a:lstStyle"];
@@ -9335,7 +9335,7 @@ export class PPTX {
 
     }
 
-    getPregraphMargn(pNode: any, idx: number | undefined, type: string | undefined, isBullate: boolean, warpObj: any) {
+    private getPregraphMargn(pNode: any, idx: number | undefined, type: string | undefined, isBullate: boolean, warpObj: any) {
         if (!isBullate) {
             return ["", 0];
         }
@@ -9439,7 +9439,7 @@ export class PPTX {
         return [marLStr, maginVal];
     }
 
-    genGlobalCSS() {
+    private genGlobalCSS() {
         let cssText = "";
         for (var key in this.styleTable) {
             let tagname = "";
@@ -9453,7 +9453,7 @@ export class PPTX {
         return cssText;
     }
 
-    async genTable(node: any, warpObj: any) {
+    private async genTable(node: any, warpObj: any) {
         let order = node["attrs"]?.["order"];
         let tableNode = this.getTextByPathList(node, ["a:graphic", "a:graphicData", "a:tbl"]);
         let xfrmNode = this.getTextByPathList(node, ["p:xfrm"]);
@@ -9844,7 +9844,7 @@ export class PPTX {
         return tableHtml;
     }
 
-    async getTableCellParams(tcNodes: any, getColsGrid: any, row_idx: number, col_idx: number | undefined, thisTblStyle: any, cellSource: any, warpObj: any) {
+    private async getTableCellParams(tcNodes: any, getColsGrid: any, row_idx: number, col_idx: number | undefined, thisTblStyle: any, cellSource: any, warpObj: any) {
         //thisTblStyle["a:band1V"] => thisTblStyle[cellSource]
         //text, cell-width, cell-borders, 
         //var text = genTextBody(tcNodes["a:txBody"], tcNodes, undefined, undefined, undefined, undefined, warpObj);//tableStyles
@@ -10015,7 +10015,7 @@ export class PPTX {
         return [text, colStyl, cssName, rowSpan, colSpan];
     }
 
-    async genChart(node: any, warpObj: any) {
+    private genChart(node: any, warpObj: any) {
 
         let order = node["attrs"]?.["order"];
         let xfrmNode = this.getTextByPathList(node, ["p:xfrm"]);
@@ -10107,7 +10107,7 @@ export class PPTX {
         return result;
     }
 
-    async genDiagram(node: any, warpObj: any, source: string, sType: string | undefined) {
+    private async genDiagram(node: any, warpObj: any, source: string, sType: string | undefined) {
         //console.log(warpObj)
         //readXmlFile(zip, sldFileName)
         /**files define the diagram:
@@ -10178,7 +10178,7 @@ export class PPTX {
             "'>" + rslt + "</div>";
     }
 
-    getPosition(slideSpNode: any, pNode: any, slideLayoutSpNode: any, slideMasterSpNode: any, sType?: string) {
+    private getPosition(slideSpNode: any, pNode: any, slideLayoutSpNode: any, slideMasterSpNode: any, sType?: string) {
         let off;
         let x = -1, y = -1;
 
@@ -10229,7 +10229,7 @@ export class PPTX {
 
     }
 
-    getSize(slideSpNode: any, slideLayoutSpNode: any, slideMasterSpNode: any) {
+    private getSize(slideSpNode: any, slideLayoutSpNode: any, slideMasterSpNode: any) {
         let ext = undefined;
         let w = -1, h = -1;
 
@@ -10250,7 +10250,7 @@ export class PPTX {
         }
 
     }
-    getVerticalMargins(pNode: any, textBodyNode: any, type: string | undefined, idx: number | undefined, warpObj: any) {
+    private getVerticalMargins(pNode: any, textBodyNode: any, type: string | undefined, idx: number | undefined, warpObj: any) {
         //margin-top ; 
         //a:pPr => a:spcBef => a:spcPts (/100) | a:spcPct (/?)
         //margin-bottom
@@ -10464,7 +10464,7 @@ export class PPTX {
         //return spcAft + spcBef;
         return marginTopBottomStr;
     }
-    getHorizontalAlign(node: any, textBodyNode: any, idx: number | undefined, type: string | undefined, prg_dir: string, warpObj: any) {
+    private getHorizontalAlign(node: any, textBodyNode: any, idx: number | undefined, type: string | undefined, prg_dir: string, warpObj: any) {
         let algn = this.getTextByPathList(node, ["a:pPr", "attrs", "algn"]);
         if (algn === undefined) {
             //var layoutMasterNode = getLayoutAndMasterNode(node, idx, type, warpObj);
@@ -10551,7 +10551,7 @@ export class PPTX {
         }
         //return algn === "ctr" ? "h-mid" : algn === "r" ? "h-right" : "h-left";
     }
-    getPregraphDir(node: any, textBodyNode: any, idx: number | undefined, type: string | undefined, warpObj: any) {
+    private getPregraphDir(node: any, textBodyNode: any, idx: number | undefined, type: string | undefined, warpObj: any) {
         let rtl = this.getTextByPathList(node, ["a:pPr", "attrs", "rtl"]);
         //console.log("getPregraphDir node:", node, "textBodyNode", textBodyNode, "rtl:", rtl, "idx", idx, "type", type, "warpObj", warpObj)
 
@@ -10583,7 +10583,7 @@ export class PPTX {
         // }
         // return "";
     }
-    getVerticalAlign(node: any, slideLayoutSpNode: any, slideMasterSpNode: any, type: string) {
+    private getVerticalAlign(node: any, slideLayoutSpNode: any, slideMasterSpNode: any, type: string) {
 
         //X, <a:bodyPr anchor="ctr">, <a:bodyPr anchor="b">
         let anchor = this.getTextByPathList(node, ["p:txBody", "a:bodyPr", "attrs", "anchor"]);
@@ -10603,7 +10603,7 @@ export class PPTX {
         return (anchor === "ctr") ? "v-mid" : ((anchor === "b") ? "v-down" : "v-up");
     }
 
-    getContentDir(node: any, type: string, warpObj: any) {
+    private getContentDir(node: any, type: string, warpObj: any) {
         return "content";
         let defRtl = this.getTextByPathList(node, ["p:txBody", "a:lstStyle", "a:defPPr", "attrs", "rtl"]);
         if (defRtl !== undefined) {
@@ -10670,7 +10670,7 @@ export class PPTX {
         //console.log("getContentDir() type:", type, "slideMasterTextStyles:", slideMasterTextStyles,"dirNode:",dirVal)
     }
 
-    getFontType(node: any, type: string | undefined, warpObj: any, pFontStyle: any) {
+    private getFontType(node: any, type: string | undefined, warpObj: any, pFontStyle: any) {
         let typeface = this.getTextByPathList(node, ["a:rPr", "a:latin", "attrs", "typeface"]);
 
         if (typeface === undefined) {
@@ -10694,7 +10694,7 @@ export class PPTX {
         return (typeface === undefined) ? "inherit" : typeface;
     }
 
-    getFontColorPr(node: any, pNode: any, lstStyle: any, pFontStyle: any, lvl: string | number, idx: number | undefined, type: string | undefined, warpObj: any) {
+    private getFontColorPr(node: any, pNode: any, lstStyle: any, pFontStyle: any, lvl: string | number, idx: number | undefined, type: string | undefined, warpObj: any) {
         //text border using: text-shadow: -1px 0 black, 0 1px black, 1px 0 black, 0 -1px black;
         //{getFontColor(..) return color} -> getFontColorPr(..) return array[color,textBordr/shadow]
         //https://stackoverflow.com/questions/2570972/css-font-border
@@ -10944,7 +10944,7 @@ export class PPTX {
         //return [color, textBordr, colorType];
         return [color, txt_effects, colorType, highlightColor];
     }
-    getFontSize(node: any, textBodyNode: any, pFontStyle: any, lvl: string | number, type: string | undefined, warpObj: any) {
+    private getFontSize(node: any, textBodyNode: any, pFontStyle: any, lvl: string | number, type: string | undefined, warpObj: any) {
         // if(type == "sldNum")
         //console.log("getFontSize node:", node, "lstStyle", lstStyle, "lvl:", lvl, 'type:', type, "warpObj:", warpObj)
         let lstStyle = (textBodyNode !== undefined) ? textBodyNode["a:lstStyle"] : undefined;
@@ -11054,15 +11054,15 @@ export class PPTX {
         return isNaN(fontSize) ? ((type == "br") ? "initial" : "inherit") : (fontSize * this.fontSizeFactor + "px");// + "pt");
     }
 
-    getFontBold(node: any) {
+    private getFontBold(node: any) {
         return (node["a:rPr"] !== undefined && node["a:rPr"]["attrs"]?.["b"] === "1") ? "bold" : "inherit";
     }
 
-    getFontItalic(node: any) {
+    private getFontItalic(node: any) {
         return (node["a:rPr"] !== undefined && node["a:rPr"]["attrs"]?.["i"] === "1") ? "italic" : "inherit";
     }
 
-    getFontDecoration(node: any) {
+    private getFontDecoration(node: any) {
         ///////////////////////////////Amir///////////////////////////////
         if (node["a:rPr"] !== undefined) {
             let underLine = node["a:rPr"]["attrs"]?.["u"] !== undefined ? node["a:rPr"]["attrs"]?.["u"] : "none";
@@ -11085,7 +11085,7 @@ export class PPTX {
         //return (node["a:rPr"] !== undefined && node["a:rPr"]["attrs"]?.["u"] === "sng") ? "underline" : "inherit";
     }
     ////////////////////////////////////Amir/////////////////////////////////////
-    getTextHorizontalAlign(node: any, pNode: any, type: string | undefined, warpObj: any) {
+    private getTextHorizontalAlign(node: any, pNode: any, type: string | undefined, warpObj: any) {
         //console.log("getTextHorizontalAlign: type: ", type, ", node: ", node)
         let getAlgn = this.getTextByPathList(node, ["a:pPr", "attrs", "algn"]);
         if (getAlgn === undefined) {
@@ -11142,12 +11142,12 @@ export class PPTX {
         return align;
     }
     /////////////////////////////////////////////////////////////////////
-    getTextVerticalAlign(node: any) {
+    private getTextVerticalAlign(node: any) {
         let baseline = this.getTextByPathList(node, ["a:rPr", "attrs", "baseline"]);
         return baseline === undefined ? "baseline" : (parseInt(baseline) / 1000) + "%";
     }
 
-    getTableBorders(node: any, warpObj: any) {
+    private getTableBorders(node: any, warpObj: any) {
         let borderStyle = "";
         if (node["a:bottom"] !== undefined) {
             let obj = {
@@ -11189,7 +11189,7 @@ export class PPTX {
         return borderStyle;
     }
     //////////////////////////////////////////////////////////////////
-    getBorder(node: any, pNode: any, isSvgMode: boolean, bType: string | undefined, warpObj: any) {
+    private getBorder(node: any, pNode: any, isSvgMode: boolean, bType: string | undefined, warpObj: any) {
         //console.log("getBorder", node, pNode, isSvgMode, bType)
         let cssText, lineNode, subNodeTxt, borderWidth, borderType, strokeDasharray = "0";
 
@@ -11357,7 +11357,7 @@ export class PPTX {
         //     }
         // }
     }
-    async getBackground(warpObj: any, index: number) {
+    private async getBackground(warpObj: any, index: number) {
         //var rslt = "";
         let slideContent = warpObj["slideContent"];
         let slideLayoutContent = warpObj["slideLayoutContent"];
@@ -11418,7 +11418,7 @@ export class PPTX {
         return result;
 
     }
-    getSlideBackgroundFill(warpObj: any, index: number) {
+    private getSlideBackgroundFill(warpObj: any, index: number) {
         let slideContent = warpObj["slideContent"];
         let slideLayoutContent = warpObj["slideLayoutContent"];
         let slideMasterContent = warpObj["slideMasterContent"];
@@ -11749,7 +11749,7 @@ export class PPTX {
         //console.log("bgcolor: ", bgcolor)
         return bgcolor;
     }
-    getBgGradientFill(bgPr: any, phClr: string | undefined, slideMasterContent: any, warpObj: any) {
+    private getBgGradientFill(bgPr: any, phClr: string | undefined, slideMasterContent: any, warpObj: any) {
         let bgcolor = "";
         if (bgPr !== undefined) {
             let grdFill = bgPr["a:gradFill"];
@@ -11809,7 +11809,7 @@ export class PPTX {
         }
         return bgcolor;
     }
-    async getBgPicFill(bgPr: any, sorce: any, warpObj: any, phClr: string | undefined, index: number | undefined) {
+    private async getBgPicFill(bgPr: any, sorce: any, warpObj: any, phClr: string | undefined, index: number | undefined) {
         //console.log("getBgPicFill bgPr", bgPr)
         let bgcolor;
         let picFillBase64 = await this.getPicFill(sorce, bgPr["a:blipFill"], warpObj);
@@ -11932,7 +11932,7 @@ export class PPTX {
     //     let arrByte = new Uint8Array(arrBuff);
     //     return arrByte[1] + "," + arrByte[2] + "," + arrByte[3];
     // }
-    async getShapeFill(node: any, pNode: any, isSvgMode: boolean, warpObj: string, source: string | undefined): Promise<any> {
+    private async getShapeFill(node: any, pNode: any, isSvgMode: boolean, warpObj: string, source: string | undefined): Promise<any> {
 
         // 1. presentationML
         // p:spPr/ [a:noFill, solidFill, gradFill, blipFill, pattFill, grpFill]
@@ -12058,7 +12058,7 @@ export class PPTX {
 
     }
     ///////////////////////Amir//////////////////////////////
-    getFillType(node: any) {
+    private getFillType(node: any) {
         //Need to test/////////////////////////////////////////////
         //SOLID_FILL
         //PIC_FILL
@@ -12088,7 +12088,7 @@ export class PPTX {
 
         return fillType;
     }
-    getGradientFill(node: any, warpObj: any) {
+    private getGradientFill(node: any, warpObj: any) {
         //console.log("getGradientFill: node", node)
         let gsLst = node["a:gsLst"]["a:gs"];
         //get start color
@@ -12111,7 +12111,7 @@ export class PPTX {
             "rot": rot
         }
     }
-    async getPicFill(type: string | undefined, node: any, warpObj: any) {
+    private async getPicFill(type: string | undefined, node: any, warpObj: any) {
         //Need to test/////////////////////////////////////////////
         //rId
         //TODO - Image Properties - Tile, Stretch, or Display Portion of Image
@@ -12151,7 +12151,7 @@ export class PPTX {
         }
         return img;
     }
-    getPatternFill(node: any, warpObj: any) {
+    private getPatternFill(node: any, warpObj: any) {
         //https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_Images/Using_CSS_gradients
         //https://cssgradient.io/blog/css-gradient-text/
         //https://css-tricks.com/background-patterns-simplified-by-conic-gradients/
@@ -12174,7 +12174,7 @@ export class PPTX {
         return linear_gradient;
     }
 
-    getLinerGrandient(prst: string, bgColor: string | undefined, fgColor: string | undefined) {
+    private getLinerGrandient(prst: string, bgColor: string | undefined, fgColor: string | undefined) {
         // dashDnDiag (Dashed Downward Diagonal)-V
         // dashHorz (Dashed Horizontal)-V
         // dashUpDiag(Dashed Upward DIagonal)-V
@@ -12450,7 +12450,7 @@ export class PPTX {
         }
     }
 
-    getSolidFill(node: any, clrMap: any, phClr: string | undefined, warpObj: any) {
+    private getSolidFill(node: any, clrMap: any, phClr: string | undefined, warpObj: any) {
 
         if (node === undefined) {
             return undefined;
@@ -12854,7 +12854,7 @@ export class PPTX {
 
         return color;
     }
-    getSchemeColorFromTheme(schemeClr: string, clrMap: any, phClr: string | undefined, warpObj: any) {
+    private getSchemeColorFromTheme(schemeClr: string, clrMap: any, phClr: string | undefined, warpObj: any) {
         //<p:clrMap ...> in slide master
         // e.g. tx2="dk2" bg2="lt2" tx1="dk1" bg1="lt1" slideLayoutClrOvride
         //console.log("getSchemeColorFromTheme: schemeClr: ", schemeClr, ",clrMap: ", clrMap)
@@ -12918,7 +12918,7 @@ export class PPTX {
         return color;
     }
 
-    extractChartData(serNode: any) {
+    private extractChartData(serNode: any) {
 
         let dataMat = new Array();
 
@@ -12979,7 +12979,7 @@ export class PPTX {
      * @param {Object} node
      * @param {string Array} path
      */
-    getTextByPathList(node: any, path: (string | number)[]) {
+    private getTextByPathList(node: any, path: (string | number)[]) {
 
         if (path.constructor !== Array) {
             throw Error("Error of path type! path is not array.");
@@ -13005,7 +13005,7 @@ export class PPTX {
      * @param {string Array} path
      * @param {string} value
      */
-    setTextByPathList(node: any, path: string[], value: string) {
+    private setTextByPathList(node: any, path: string[], value: string) {
 
         if (path.constructor !== Array) {
             throw Error("Error of path type! path is not array.");
@@ -13023,7 +13023,7 @@ export class PPTX {
      * @param {Object} node
      * @param {function} doFunction
      */
-    eachElement(node: any, doFunction: Function) {
+    private eachElement(node: any, doFunction: Function) {
         if (node === undefined) {
             return;
         }
@@ -13039,7 +13039,7 @@ export class PPTX {
         return result;
     }
 
-    getMimeType(imgFileExt: string | undefined) {
+    private getMimeType(imgFileExt: string | undefined) {
         let mimeType = "";
         //console.log(imgFileExt)
         switch (imgFileExt?.toLowerCase()) {
@@ -13099,7 +13099,7 @@ export class PPTX {
         }
         return mimeType;
     }
-    getSvgGradient(w: number, h: number, angl: number, color_arry: string[], shpId: string) {
+    private getSvgGradient(w: number, h: number, angl: number, color_arry: string[], shpId: string) {
         // TODO: find meaning
         // @ts-ignore
         let stopsArray = this.getMiddleStops(color_arry - 2);
@@ -13132,7 +13132,7 @@ export class PPTX {
 
         return svg
     }
-    getMiddleStops(s: number) {
+    private getMiddleStops(s: number) {
         let sArry = ['0%', '100%'];
         if (s == 0) {
             return sArry;
@@ -13146,7 +13146,7 @@ export class PPTX {
         }
         return sArry
     }
-    SVGangle(deg: number, svgHeight: number, svgWidth: number) {
+    private SVGangle(deg: number, svgHeight: number, svgWidth: number) {
         let w = svgWidth,
             h = svgHeight,
             ang = deg,
@@ -13208,7 +13208,7 @@ export class PPTX {
         ty2 = ty2 == 2 ? h - ty1 : ty2;
         return [x1, y1, x2, y2];
     }
-    getSvgImagePattern(node: any, fill: string, shpId: string, warpObj: any) {
+    private getSvgImagePattern(node: any, fill: string, shpId: string, warpObj: any) {
         let pic_dim = this.getBase64ImageDimensions(fill);
         let width = pic_dim?.[0] ?? 0;
         let height = pic_dim?.[1] ?? 0;
@@ -13294,7 +13294,7 @@ export class PPTX {
         return ptrn;
     }
 
-    getBase64ImageDimensions(imgSrc: string) {
+    private getBase64ImageDimensions(imgSrc: string) {
         let image = new Image();
         let w, h;
         image.onload = function () {
@@ -13312,13 +13312,13 @@ export class PPTX {
         //return [w, h];
     }
 
-    processMsgQueue() {
+    private processMsgQueue() {
         for (var i = 0; i < this.MsgQueue.length; i++) {
             this.processSingleMsg(this.MsgQueue[i].data);
         }
     }
 
-    processSingleMsg(d: any) {
+    private processSingleMsg(d: any) {
         var chartID = d.chartID;
         var chartType = d.chartType;
         var chartData = d.chartData;
@@ -13387,7 +13387,7 @@ export class PPTX {
         }
     }
 
-    setNumericBullets(elem: NodeListOf<Element>) {
+    private setNumericBullets(elem: NodeListOf<Element>) {
         let prgrphs_arry = elem;
         for (var i = 0; i < prgrphs_arry.length; i++) {
             let buSpan = prgrphs_arry[i].querySelectorAll('.numeric-bullet-style');
