@@ -19,6 +19,7 @@ export const convertPPTXDataToJSX = (result: any, pptx: PPTX) => {
             default:
         }
     }
+    console.log(htmlString);
     // if (!options.slideMode || (options.slideMode && options.slideType == "revealjs")) {
         // TODO: implement slideMode
         // if (document.getElementById("all_slides_warpper") === null) {

@@ -5,9 +5,10 @@ import { XMLParser } from 'fast-xml-parser';
 import { dingbatUnicode } from './dingbatUnicode';
 import _ from 'lodash';
 import tinycolor from 'tinycolor2';
-import './assets/d3.min.js';
-import './assets/nv.d3.min.js';
 import './assets/pptxjs.less';
+import { base64ArrayBuffer, escapeHtml } from './utils';
+import { extractFileExtension, isVideoLink } from './utils/file';
+import { angleToDegrees, applyHueMod, applySatMod, applyTint, applyShade, applyLumOff, applyLumMod, rtlLangs, toHex, colorMap, hslToRgb } from './utils/color';
 
 interface PPTXOptions {
     url?: string;
@@ -23,26 +24,6 @@ interface PPTXOptions {
         height: number;
     };
     mediaProcess?: boolean;
-}
-
-function archaicNumbers(arr: [number | RegExp, string][]) {
-    const arrParse = arr.slice().sort((a, b) => b[1].length - a[1].length);
-    return {
-        format: (n: number): string => {
-            let ret = '';
-            for (const [source, replacement] of arrParse) {
-                if (typeof source === 'number') {
-                    while (n >= source) {
-                        ret += replacement;
-                        n -= source;
-                    }
-                } else {
-                    ret = ret.replace(source, replacement);
-                }
-            }
-            return ret;
-        }
-    };
 }
 
 export class PPTX {
@@ -74,37 +55,7 @@ export class PPTX {
     } | null = null;
     isFirstBr = false;
     styleTable: Record<string, any> = {};
-    hebrew2Minus = archaicNumbers([
-        [1000, ''],
-        [400, 'ת'],
-        [300, 'ש'],
-        [200, 'ר'],
-        [100, 'ק'],
-        [90, 'צ'],
-        [80, 'פ'],
-        [70, 'ע'],
-        [60, 'ס'],
-        [50, 'נ'],
-        [40, 'מ'],
-        [30, 'ל'],
-        [20, 'כ'],
-        [10, 'י'],
-        [9, 'ט'],
-        [8, 'ח'],
-        [7, 'ז'],
-        [6, 'ו'],
-        [5, 'ה'],
-        [4, 'ד'],
-        [3, 'ג'],
-        [2, 'ב'],
-        [1, 'א'],
-        [/יה/, 'ט״ו'],
-        [/יו/, 'ט״ז'],
-        [/([א-ת])([א-ת])$/, '$1״$2'],
-        [/^([א-ת])$/, "$1׳"]
-    ]);
 
-    rtlLangs = ["he-IL", "ar-AE", "ar-SA", "dv-MV", "fa-IR","ur-PK"];
     chartID = 0;
     MsgQueue: any[] = [];
     isDone = false;
@@ -207,7 +158,7 @@ export class PPTX {
             const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: "", attributesGroupName: "attrs", ignorePiTags: true, trimValues: false });
             return parser.parse(fileContent);
         } catch (e) {
-            //console.log("error readXmlFile: the file '", filename, "' not exit")
+            console.log("error readXmlFile: the file '", filename, "' not exit")
             return null;
         }
 
@@ -458,10 +409,13 @@ export class PPTX {
                 result += await this.processNodesInSlide(nodeKey, nodes[nodeKey], nodes, warpObj, "slide");
             }
         }
+        if (index == 11) {
+        console.log(result);
+        }
         if (this.options.slideMode && this.options.slideType == "revealjs") {
-            return result + "</div></section>";
+            return result + "</section>";
         } else {
-            return result + "</div></div>";
+            return result + "</div>";
         }
 
     }
@@ -577,7 +531,7 @@ export class PPTX {
 
             sType = "group";
             if (!isNaN(rotate)) {
-                rotate = this.angleToDegrees(rotate);
+                rotate = angleToDegrees(rotate);
                 rotStr += "transform: rotate(" + rotate + "deg) ; transform-origin: center;";
                 // let cLin = Math.sqrt(Math.pow((chy), 2) + Math.pow((chx), 2));
                 // let rdian = degreesToRadians(rotate);
@@ -744,7 +698,7 @@ export class PPTX {
         }
         /////////////////////////Amir////////////////////////
         //rotate
-        let rotate = this.angleToDegrees(this.getTextByPathList(slideXfrmNode, ["attrs", "rot"]));
+        let rotate = angleToDegrees(this.getTextByPathList(slideXfrmNode, ["attrs", "rot"]));
 
         //console.log("genShape rotate: " + rotate);
         let txtRotate;
@@ -752,7 +706,7 @@ export class PPTX {
         if (txtXframeNode !== undefined) {
             let txtXframeRot = this.getTextByPathList(txtXframeNode, ["attrs", "rot"]);
             if (txtXframeRot !== undefined) {
-                txtRotate = this.angleToDegrees(txtXframeRot) + 90;
+                txtRotate = angleToDegrees(txtXframeRot) + 90;
             }
         } else {
             txtRotate = rotate;
@@ -8266,7 +8220,7 @@ export class PPTX {
         let imgName = resObj[rid]["target"];
 
         //console.log("processPicNode imgName:", imgName);
-        let imgFileExt = this.extractFileExtension(imgName).toLowerCase();
+        let imgFileExt = extractFileExtension(imgName).toLowerCase();
         let imgArrayBuffer = await this.zip!.file(imgName)?.async("arraybuffer");
         let mimeType = "";
         let xfrmNode = node["p:spPr"]["a:xfrm"];
@@ -8281,7 +8235,7 @@ export class PPTX {
         let rotate = 0;
         let rotateNode = this.getTextByPathList(node, ["p:spPr", "a:xfrm", "attrs", "rot"]);
         if (rotateNode !== undefined) {
-            rotate = this.angleToDegrees(rotateNode);
+            rotate = angleToDegrees(rotateNode);
         }
         //video
         let vdoNode = this.getTextByPathList(node, ["p:nvPicPr", "p:nvPr", "a:videoFile"]);
@@ -8290,15 +8244,15 @@ export class PPTX {
         if (vdoNode !== undefined && mediaProcess) {
             vdoRid = vdoNode["attrs"]?.["r:link"];
             vdoFile = resObj[vdoRid]["target"];
-            let checkIfLink = this.IsVideoLink(vdoFile);
+            let checkIfLink = isVideoLink(vdoFile);
             if (checkIfLink) {
-                vdoFile = this.escapeHtml(vdoFile);
+                vdoFile = escapeHtml(vdoFile);
                 //vdoBlob = vdoFile;
                 isVdeoLink = true;
                 mediaSupportFlag = true;
                 mediaPicFlag = true;
             } else {
-                vdoFileExt = this.extractFileExtension(vdoFile).toLowerCase();
+                vdoFileExt = extractFileExtension(vdoFile);
                 if (vdoFileExt == "mp4" || vdoFileExt == "webm" || vdoFileExt == "ogg") {
                     uInt8Array = await this.zip?.file(vdoFile)?.async("arraybuffer");
                     vdoMimeType = this.getMimeType(vdoFileExt);
@@ -8319,7 +8273,7 @@ export class PPTX {
         if (audioNode !== undefined && mediaProcess) {
             audioRid = audioNode["attrs"]?.["r:link"];
             audioFile = resObj[audioRid]["target"];
-            audioFileExt = this.extractFileExtension(audioFile).toLowerCase();
+            audioFileExt = extractFileExtension(audioFile);
             if (audioFileExt == "mp3" || audioFileExt == "wav" || audioFileExt == "ogg") {
                 uInt8ArrayAudio = await this.zip?.file(audioFile)?.async("arraybuffer");
                 blobAudio = new Blob([uInt8ArrayAudio!]);
@@ -8357,7 +8311,7 @@ export class PPTX {
             " z-index: " + order + ";" +
             "transform: rotate(" + rotate + "deg);'>";
         if ((vdoNode === undefined && audioNode === undefined) || !mediaProcess || !mediaSupportFlag) {
-            rtrnData += "<img src='data:" + mimeType + ";base64," + this.base64ArrayBuffer(imgArrayBuffer!) + "' style='width: 100%; height: 100%'/>";
+            rtrnData += "<img src='data:" + mimeType + ";base64," + base64ArrayBuffer(imgArrayBuffer!) + "' style='width: 100%; height: 100%'/>";
         } else if ((vdoNode !== undefined || audioNode !== undefined) && mediaProcess && mediaSupportFlag) {
             if (vdoNode !== undefined && !isVdeoLink) {
                 rtrnData += "<video  src='" + vdoBlob + "' controls style='width: 100%; height: 100%'>Your browser does not support the video tag.</video>";
@@ -9028,7 +8982,7 @@ export class PPTX {
                 let imgArrayBuffer = warpObj["zip"].file(imgPath).asArrayBuffer();
                 let imgExt = imgPath.split(".").pop();
                 let imgMimeType = this.getMimeType(imgExt);
-                buImg = "<img src='data:" + imgMimeType + ";base64," + this.base64ArrayBuffer(imgArrayBuffer) + "' style='width: 100%;'/>"// height: 100%
+                buImg = "<img src='data:" + imgMimeType + ";base64," + base64ArrayBuffer(imgArrayBuffer) + "' style='width: 100%;'/>"// height: 100%
                 //console.log("imgPath: "+imgPath+"\nimgMimeType: "+imgMimeType)
             }
             if (buPicId === undefined) {
@@ -9151,8 +9105,8 @@ export class PPTX {
         let text = node["a:t"];
         //var text_count = text.length;
 
-        let openElemnt = "<sapn";//"<bdi";
-        let closeElemnt = "</sapn>";// "</bdi>";
+        let openElemnt = "<span";//"<bdi";
+        let closeElemnt = "</span>";// "</bdi>";
         let styleText = "";
         if (text === undefined && node["type"] !== undefined) {
             if (this.isFirstBr) {
@@ -9160,7 +9114,7 @@ export class PPTX {
                 //closeElemnt = "";
                 //return "<br style='font-size: initial'>"
                 this.isFirstBr = false;
-                return "<sapn class='line-break-br' ></sapn>";
+                return "<span class='line-break-br' ></span>";
             } else {
                 // styleText += "display: block;";
                 // openElemnt = "<sapn";
@@ -9198,7 +9152,7 @@ export class PPTX {
 
         //Language
         let lang = this.getTextByPathList(node, ["a:rPr", "attrs", "lang"]);
-        let isRtlLan = (lang !== undefined && this.rtlLangs.indexOf(lang) !== -1) ? true : false;
+        let isRtlLan = (lang !== undefined && rtlLangs.indexOf(lang) !== -1) ? true : false;
         //rtl
         let getRtlVal = this.getTextByPathList(pPrNode, ["attrs", "rtl"]);
         if (getRtlVal === undefined) {
@@ -9398,11 +9352,12 @@ export class PPTX {
 
         if (linkID !== undefined && linkID != "") {
             let linkURL = warpObj["slideResObj"][linkID]["target"];
-            linkURL = this.escapeHtml(linkURL);
+            linkURL = escapeHtml(linkURL);
             return openElemnt + " class='text-block " + cssName + "' style='" + text_style + "'><a href='" + linkURL + "' " + linkColorSyle + "  " + linkTooltip + " target='_blank'>" +
-                text.replace(/\t/g, '&nbsp;&nbsp;&nbsp;&nbsp;').replace(/\s/g, "&nbsp;") + "</a>" + closeElemnt;
+                escapeHtml(text) + "</a>" + closeElemnt;
         } else {
-            return openElemnt + " class='text-block " + cssName + "' style='" + text_style + "'>" + text.replace(/\t/g, '&nbsp;&nbsp;&nbsp;&nbsp;').replace(/\s/g, "&nbsp;") + closeElemnt;//"</bdi>";
+            // charactors like '<' should be escaped incase of it is a html tag
+            return openElemnt + " class='text-block " + cssName + "' style='" + text_style + "'>" + escapeHtml(text) + closeElemnt;//"</bdi>";
         }
 
     }
@@ -11497,6 +11452,7 @@ export class PPTX {
                 }
             }
         }
+        result += "</div>";
         return result;
 
     }
@@ -11858,7 +11814,7 @@ export class PPTX {
             let lin = grdFill["a:lin"];
             let rot = 90;
             if (lin !== undefined) {
-                rot = this.angleToDegrees(lin["attrs"]?.["ang"]);// + 270;
+                rot = angleToDegrees(lin["attrs"]?.["ang"]);// + 270;
                 //console.log("rot: ", rot)
                 rot = rot + 90;
             }
@@ -12186,7 +12142,7 @@ export class PPTX {
         let lin = node["a:lin"];
         let rot = 0;
         if (lin !== undefined) {
-            rot = this.angleToDegrees(lin["attrs"]?.["ang"]) + 90;
+            rot = angleToDegrees(lin["attrs"]?.["ang"]) + 90;
         }
         return {
             "color": color_ary,
@@ -12218,7 +12174,7 @@ export class PPTX {
         }
         img = this.getTextByPathList(warpObj, ["loaded-images", imgPath]); //, type, rId
         if (img === undefined) {
-            imgPath = this.escapeHtml(imgPath);
+            imgPath = escapeHtml(imgPath);
 
 
             let imgExt = imgPath.split(".").pop();
@@ -12227,7 +12183,7 @@ export class PPTX {
             }
             let imgArrayBuffer = await this.zip?.file(imgPath)?.async("arraybuffer");
             let imgMimeType = this.getMimeType(imgExt);
-            if (imgArrayBuffer) img = "data:" + imgMimeType + ";base64," + this.base64ArrayBuffer(imgArrayBuffer);
+            if (imgArrayBuffer) img = "data:" + imgMimeType + ";base64," + base64ArrayBuffer(imgArrayBuffer);
             //warpObj["loaded-images"][imgPath] = img; //"defaultTextStyle": defaultTextStyle,
             this.setTextByPathList(warpObj, ["loaded-images", imgPath], img); //, type, rId
         }
@@ -12557,14 +12513,14 @@ export class PPTX {
             let green = (defBultColorVals["g"].indexOf("%") != -1) ? defBultColorVals["g"].split("%").shift() : defBultColorVals["g"];
             let blue = (defBultColorVals["b"].indexOf("%") != -1) ? defBultColorVals["b"].split("%").shift() : defBultColorVals["b"];
             //var scrgbClr = red + "," + green + "," + blue;
-            color = this.toHex(255 * (Number(red) / 100)) + this.toHex(255 * (Number(green) / 100)) + this.toHex(255 * (Number(blue) / 100));
+            color = toHex(255 * (Number(red) / 100)) + toHex(255 * (Number(green) / 100)) + toHex(255 * (Number(blue) / 100));
             //console.log("scrgbClr: " + scrgbClr);
 
         } else if (node["a:prstClr"] !== undefined) {
             clrNode = node["a:prstClr"];
             //<a:prstClr val="black"/>  //Need to test/////////////////////////////////////////////
             let prstClr = this.getTextByPathList(clrNode, ["attrs", "val"]); //node["a:prstClr"]["attrs"]?.["val"];
-            color = this.getColorName2Hex(prstClr);
+            color = colorMap.get(prstClr);
             //console.log("blip prstClr: ", prstClr, " => hexClr: ", color);
         } else if (node["a:hslClr"] !== undefined) {
             clrNode = node["a:hslClr"];
@@ -12574,8 +12530,8 @@ export class PPTX {
             let sat = Number((defBultColorVals["sat"].indexOf("%") != -1) ? defBultColorVals["sat"].split("%").shift() : defBultColorVals["sat"]) / 100;
             let lum = Number((defBultColorVals["lum"].indexOf("%") != -1) ? defBultColorVals["lum"].split("%").shift() : defBultColorVals["lum"]) / 100;
             //var hslClr = defBultColorVals["hue"] + "," + defBultColorVals["sat"] + "," + defBultColorVals["lum"];
-            let hsl2rgb = this.hslToRgb(hue, sat, lum);
-            color = this.toHex(hsl2rgb.r) + this.toHex(hsl2rgb.g) + this.toHex(hsl2rgb.b);
+            let hsl2rgb = hslToRgb(hue, sat, lum);
+            color = toHex(hsl2rgb.r) + toHex(hsl2rgb.g) + toHex(hsl2rgb.b);
             //defBultColor = cnvrtHslColor2Hex(hslClr); //TODO
             // console.log("hslClr: " + hslClr);
         } else if (node["a:sysClr"] !== undefined) {
@@ -12730,7 +12686,7 @@ export class PPTX {
         let hueMod = parseInt(this.getTextByPathList(clrNode, ["a:hueMod", "attrs", "val"])) / 100000;
         //console.log("hueMod: ", hueMod)
         if (!isNaN(hueMod)) {
-            color = this.applyHueMod(color!, hueMod, isAlpha);
+            color = applyHueMod(color!, hueMod, isAlpha);
         }
         //15. "hueOff"(This element specifies a color using the HSL color model):
         // Specifies the actual angular value of the shift.The result of the shift shall be between 0
@@ -12796,7 +12752,7 @@ export class PPTX {
         let lumMod = parseInt(this.getTextByPathList(clrNode, ["a:lumMod", "attrs", "val"])) / 100000;
         //console.log("lumMod: ", lumMod)
         if (!isNaN(lumMod)) {
-            color = this.applyLumMod(color!, lumMod, isAlpha);
+            color = applyLumMod(color!, lumMod, isAlpha);
         }
         //var lumMod_color = applyLumMod(color, 0.5);
         //console.log("lumMod_color: ", lumMod_color)
@@ -12814,7 +12770,7 @@ export class PPTX {
         let lumOff = parseInt(this.getTextByPathList(clrNode, ["a:lumOff", "attrs", "val"])) / 100000;
         //console.log("lumOff: ", lumOff)
         if (!isNaN(lumOff)) {
-            color = this.applyLumOff(color!, lumOff, isAlpha);
+            color = applyLumOff(color!, lumOff, isAlpha);
         }
 
 
@@ -12886,7 +12842,7 @@ export class PPTX {
         //     </a: solidFill >
         let satMod = parseInt(this.getTextByPathList(clrNode, ["a:satMod", "attrs", "val"])) / 100000;
         if (!isNaN(satMod)) {
-            color = this.applySatMod(color!, satMod, isAlpha);
+            color = applySatMod(color!, satMod, isAlpha);
         }
         //25. "satOff":
         // Specifies the saturation as expressed by a percentage offset increase or decrease to the
@@ -12916,7 +12872,7 @@ export class PPTX {
         // end example]
         let shade = parseInt(this.getTextByPathList(clrNode, ["a:shade", "attrs", "val"])) / 100000;
         if (!isNaN(shade)) {
-            color = this.applyShade(color!, shade, isAlpha);
+            color = applyShade(color!, shade, isAlpha);
         }
         //27.  "tint":
         // This element specifies a lighter version of its input color.A 10 % tint is 10 % of the input color combined with
@@ -12930,48 +12886,11 @@ export class PPTX {
         //     </a: solidFill >
         let tint = parseInt(this.getTextByPathList(clrNode, ["a:tint", "attrs", "val"])) / 100000;
         if (!isNaN(tint)) {
-            color = this.applyTint(color!, tint, isAlpha);
+            color = applyTint(color!, tint, isAlpha);
         }
         //console.log("color [%cfinal]: ", "color: #" + color, tinycolor(color).toHslString(), color)
 
         return color;
-    }
-    toHex(n: number) {
-        let hex = n.toString(16);
-        while (hex.length < 2) { hex = "0" + hex; }
-        return hex;
-    }
-    hslToRgb(hue: number, sat: number, light: number) {
-        let t1, t2, r, g, b;
-        hue = hue / 60;
-        if (light <= 0.5) {
-            t2 = light * (sat + 1);
-        } else {
-            t2 = light + sat - (light * sat);
-        }
-        t1 = light * 2 - t2;
-        r = this.hueToRgb(t1, t2, hue + 2) * 255;
-        g = this.hueToRgb(t1, t2, hue) * 255;
-        b = this.hueToRgb(t1, t2, hue - 2) * 255;
-        return { r: r, g: g, b: b };
-    }
-    hueToRgb(t1: number, t2: number, hue: number) {
-        if (hue < 0) hue += 6;
-        if (hue >= 6) hue -= 6;
-        if (hue < 1) return (t2 - t1) * hue + t1;
-        else if (hue < 3) return t2;
-        else if (hue < 4) return (t2 - t1) * (4 - hue) + t1;
-        else return t1;
-    }
-    getColorName2Hex(name: string) {
-        let hex;
-        let colorName = ['white', 'AliceBlue', 'AntiqueWhite', 'Aqua', 'Aquamarine', 'Azure', 'Beige', 'Bisque', 'black', 'BlanchedAlmond', 'Blue', 'BlueViolet', 'Brown', 'BurlyWood', 'CadetBlue', 'Chartreuse', 'Chocolate', 'Coral', 'CornflowerBlue', 'Cornsilk', 'Crimson', 'Cyan', 'DarkBlue', 'DarkCyan', 'DarkGoldenRod', 'DarkGray', 'DarkGrey', 'DarkGreen', 'DarkKhaki', 'DarkMagenta', 'DarkOliveGreen', 'DarkOrange', 'DarkOrchid', 'DarkRed', 'DarkSalmon', 'DarkSeaGreen', 'DarkSlateBlue', 'DarkSlateGray', 'DarkSlateGrey', 'DarkTurquoise', 'DarkViolet', 'DeepPink', 'DeepSkyBlue', 'DimGray', 'DimGrey', 'DodgerBlue', 'FireBrick', 'FloralWhite', 'ForestGreen', 'Fuchsia', 'Gainsboro', 'GhostWhite', 'Gold', 'GoldenRod', 'Gray', 'Grey', 'Green', 'GreenYellow', 'HoneyDew', 'HotPink', 'IndianRed', 'Indigo', 'Ivory', 'Khaki', 'Lavender', 'LavenderBlush', 'LawnGreen', 'LemonChiffon', 'LightBlue', 'LightCoral', 'LightCyan', 'LightGoldenRodYellow', 'LightGray', 'LightGrey', 'LightGreen', 'LightPink', 'LightSalmon', 'LightSeaGreen', 'LightSkyBlue', 'LightSlateGray', 'LightSlateGrey', 'LightSteelBlue', 'LightYellow', 'Lime', 'LimeGreen', 'Linen', 'Magenta', 'Maroon', 'MediumAquaMarine', 'MediumBlue', 'MediumOrchid', 'MediumPurple', 'MediumSeaGreen', 'MediumSlateBlue', 'MediumSpringGreen', 'MediumTurquoise', 'MediumVioletRed', 'MidnightBlue', 'MintCream', 'MistyRose', 'Moccasin', 'NavajoWhite', 'Navy', 'OldLace', 'Olive', 'OliveDrab', 'Orange', 'OrangeRed', 'Orchid', 'PaleGoldenRod', 'PaleGreen', 'PaleTurquoise', 'PaleVioletRed', 'PapayaWhip', 'PeachPuff', 'Peru', 'Pink', 'Plum', 'PowderBlue', 'Purple', 'RebeccaPurple', 'Red', 'RosyBrown', 'RoyalBlue', 'SaddleBrown', 'Salmon', 'SandyBrown', 'SeaGreen', 'SeaShell', 'Sienna', 'Silver', 'SkyBlue', 'SlateBlue', 'SlateGray', 'SlateGrey', 'Snow', 'SpringGreen', 'SteelBlue', 'Tan', 'Teal', 'Thistle', 'Tomato', 'Turquoise', 'Violet', 'Wheat', 'White', 'WhiteSmoke', 'Yellow', 'YellowGreen'];
-        let colorHex = ['ffffff', 'f0f8ff', 'faebd7', '00ffff', '7fffd4', 'f0ffff', 'f5f5dc', 'ffe4c4', '000000', 'ffebcd', '0000ff', '8a2be2', 'a52a2a', 'deb887', '5f9ea0', '7fff00', 'd2691e', 'ff7f50', '6495ed', 'fff8dc', 'dc143c', '00ffff', '00008b', '008b8b', 'b8860b', 'a9a9a9', 'a9a9a9', '006400', 'bdb76b', '8b008b', '556b2f', 'ff8c00', '9932cc', '8b0000', 'e9967a', '8fbc8f', '483d8b', '2f4f4f', '2f4f4f', '00ced1', '9400d3', 'ff1493', '00bfff', '696969', '696969', '1e90ff', 'b22222', 'fffaf0', '228b22', 'ff00ff', 'dcdcdc', 'f8f8ff', 'ffd700', 'daa520', '808080', '808080', '008000', 'adff2f', 'f0fff0', 'ff69b4', 'cd5c5c', '4b0082', 'fffff0', 'f0e68c', 'e6e6fa', 'fff0f5', '7cfc00', 'fffacd', 'add8e6', 'f08080', 'e0ffff', 'fafad2', 'd3d3d3', 'd3d3d3', '90ee90', 'ffb6c1', 'ffa07a', '20b2aa', '87cefa', '778899', '778899', 'b0c4de', 'ffffe0', '00ff00', '32cd32', 'faf0e6', 'ff00ff', '800000', '66cdaa', '0000cd', 'ba55d3', '9370db', '3cb371', '7b68ee', '00fa9a', '48d1cc', 'c71585', '191970', 'f5fffa', 'ffe4e1', 'ffe4b5', 'ffdead', '000080', 'fdf5e6', '808000', '6b8e23', 'ffa500', 'ff4500', 'da70d6', 'eee8aa', '98fb98', 'afeeee', 'db7093', 'ffefd5', 'ffdab9', 'cd853f', 'ffc0cb', 'dda0dd', 'b0e0e6', '800080', '663399', 'ff0000', 'bc8f8f', '4169e1', '8b4513', 'fa8072', 'f4a460', '2e8b57', 'fff5ee', 'a0522d', 'c0c0c0', '87ceeb', '6a5acd', '708090', '708090', 'fffafa', '00ff7f', '4682b4', 'd2b48c', '008080', 'd8bfd8', 'ff6347', '40e0d0', 'ee82ee', 'f5deb3', 'ffffff', 'f5f5f5', 'ffff00', '9acd32'];
-        let findIndx = colorName.indexOf(name);
-        if (findIndx != -1) {
-            hex = colorHex[findIndx];
-        }
-        return hex;
     }
     getSchemeColorFromTheme(schemeClr: string, clrMap: any, phClr: string | undefined, warpObj: any) {
         //<p:clrMap ...> in slide master
@@ -13093,16 +13012,6 @@ export class PPTX {
         return dataMat;
     }
 
-    // ===== Node functions =====
-    /**
-     * getTextByPathStr
-     * @param {Object} node
-     * @param {string} pathStr
-     */
-    getTextByPathStr(node: any, pathStr: string) {
-        return this.getTextByPathList(node, pathStr.trim().split(/\s+/));
-    }
-
     /**
      * getTextByPathList
      * @param {Object} node
@@ -13168,180 +13077,6 @@ export class PPTX {
         return result;
     }
 
-    // ===== Color functions =====
-    /**
-     * applyShade
-     * @param {string} rgbStr
-     * @param {number} shadeValue
-     */
-    applyShade(rgbStr: string, shadeValue: number, isAlpha: boolean) {
-        let color = tinycolor(rgbStr).toHsl();
-        //console.log("applyShade  color: ", color, ", shadeValue: ", shadeValue)
-        if (shadeValue >= 1) {
-            shadeValue = 1;
-        }
-        let cacl_l = Math.min(color.l * shadeValue, 1);//;color.l * shadeValue + (1 - shadeValue);
-        // if (isAlpha)
-        //     return color.lighten(tintValue).toHex8();
-        // return color.lighten(tintValue).toHex();
-        if (isAlpha)
-            return tinycolor({ h: color.h, s: color.s, l: cacl_l, a: color.a }).toHex8();
-        return tinycolor({ h: color.h, s: color.s, l: cacl_l, a: color.a }).toHex();
-    }
-
-    /**
-     * applyTint
-     * @param {string} rgbStr
-     * @param {number} tintValue
-     */
-    applyTint(rgbStr: string, tintValue: number, isAlpha: boolean) {
-        let color = tinycolor(rgbStr).toHsl();
-        //console.log("applyTint  color: ", color, ", tintValue: ", tintValue)
-        if (tintValue >= 1) {
-            tintValue = 1;
-        }
-        let cacl_l = color.l * tintValue + (1 - tintValue);
-        // if (isAlpha)
-        //     return color.lighten(tintValue).toHex8();
-        // return color.lighten(tintValue).toHex();
-        if (isAlpha)
-            return tinycolor({ h: color.h, s: color.s, l: cacl_l, a: color.a }).toHex8();
-        return tinycolor({ h: color.h, s: color.s, l: cacl_l, a: color.a }).toHex();
-    }
-
-    /**
-     * applyLumOff
-     * @param {string} rgbStr
-     * @param {number} offset
-     */
-    applyLumOff(rgbStr: string, offset: number, isAlpha: boolean) {
-        let color = tinycolor(rgbStr).toHsl();
-        //console.log("applyLumOff  color.l: ", color.l, ", offset: ", offset, ", color.l + offset : ", color.l + offset)
-        let lum = offset + color.l;
-        if (lum >= 1) {
-            if (isAlpha)
-                return tinycolor({ h: color.h, s: color.s, l: 1, a: color.a }).toHex8();
-            return tinycolor({ h: color.h, s: color.s, l: 1, a: color.a }).toHex();
-        }
-        if (isAlpha)
-            return tinycolor({ h: color.h, s: color.s, l: lum, a: color.a }).toHex8();
-        return tinycolor({ h: color.h, s: color.s, l: lum, a: color.a }).toHex();
-    }
-
-    /**
-     * applyLumMod
-     * @param {string} rgbStr
-     * @param {number} multiplier
-     */
-    applyLumMod(rgbStr: string, multiplier: number, isAlpha: boolean) {
-        let color = tinycolor(rgbStr).toHsl();
-        //console.log("applyLumMod  color.l: ", color.l, ", multiplier: ", multiplier, ", color.l * multiplier : ", color.l * multiplier)
-        let cacl_l = color.l * multiplier;
-        if (cacl_l >= 1) {
-            cacl_l = 1;
-        }
-        if (isAlpha)
-            return tinycolor({ h: color.h, s: color.s, l: cacl_l, a: color.a }).toHex8();
-        return tinycolor({ h: color.h, s: color.s, l: cacl_l, a: color.a }).toHex();
-    }
-
-
-    // /**
-    //  * applyHueMod
-    //  * @param {string} rgbStr
-    //  * @param {number} multiplier
-    //  */
-    applyHueMod(rgbStr: string, multiplier: number, isAlpha: boolean) {
-        let color = tinycolor(rgbStr).toHsl();
-        //console.log("applyLumMod  color.h: ", color.h, ", multiplier: ", multiplier, ", color.h * multiplier : ", color.h * multiplier)
-
-        let cacl_h = color.h * multiplier;
-        if (cacl_h >= 360) {
-            cacl_h = cacl_h - 360;
-        }
-        if (isAlpha)
-            return tinycolor({ h: cacl_h, s: color.s, l: color.l, a: color.a }).toHex8();
-        return tinycolor({ h: cacl_h, s: color.s, l: color.l, a: color.a }).toHex();
-    }
-
-
-    // /**
-    //  * applyHueOff
-    //  * @param {string} rgbStr
-    //  * @param {number} offset
-    //  */
-    // function applyHueOff(rgbStr, offset, isAlpha) {
-    //     let color = tinycolor(rgbStr).toHsl();
-    //     //console.log("applyLumMod  color.h: ", color.h, ", offset: ", offset, ", color.h * offset : ", color.h * offset)
-
-    //     let cacl_h = color.h * offset;
-    //     if (cacl_h >= 360) {
-    //         cacl_h = cacl_h - 360;
-    //     }
-    //     if (isAlpha)
-    //         return tinycolor({ h: cocacl_h, s: color.s, l: color.l, a: color.a }).toHex8();
-    //     return tinycolor({ h: cacl_h, s: color.s, l: color.l, a: color.a }).toHex();
-    // }
-    // /**
-    //  * applySatMod
-    //  * @param {string} rgbStr
-    //  * @param {number} multiplier
-    //  */
-    applySatMod(rgbStr: string, multiplier: number, isAlpha: boolean) {
-        let color = tinycolor(rgbStr).toHsl();
-        //console.log("applySatMod  color.s: ", color.s, ", multiplier: ", multiplier, ", color.s * multiplier : ", color.s * multiplier)
-        let cacl_s = color.s * multiplier;
-        if (cacl_s >= 1) {
-            cacl_s = 1;
-        }
-        //return;
-        // if (isAlpha)
-        //     return tinycolor(rgbStr).saturate(multiplier * 100).toHex8();
-        // return tinycolor(rgbStr).saturate(multiplier * 100).toHex();
-        if (isAlpha)
-            return tinycolor({ h: color.h, s: cacl_s, l: color.l, a: color.a }).toHex8();
-        return tinycolor({ h: color.h, s: cacl_s, l: color.l, a: color.a }).toHex();
-    }
-
-    /**
-     * rgba2hex
-     * @param {string} rgbaStr
-     */
-    rgba2hex(rgbaStr: string) {
-        let a,
-            rgb = rgbaStr.replace(/\s/g, '').match(/^rgba?\((\d+),(\d+),(\d+),?([^,\s)]+)?/i),
-            alpha = (rgb?.[4] || "").trim(),
-            hex = rgb ?
-                (Number(rgb[1]) | 1 << 8).toString(16).slice(1) +
-                (Number(rgb[2]) | 1 << 8).toString(16).slice(1) +
-                (Number(rgb[3]) | 1 << 8).toString(16).slice(1) : rgbaStr;
-
-        if (alpha !== "") {
-            a = alpha;
-        } else {
-            a = 0o1;
-        }
-        // multiply before convert to HEX
-        a = ((Number(a) * 255) | 1 << 8).toString(16).slice(1)
-        hex = hex + a;
-
-        return hex;
-    }
-
-    ///////////////////////Amir////////////////
-    angleToDegrees(angle: string | number | null) {
-        if (angle == "" || angle == null) {
-            return 0;
-        }
-        return Math.round(Number(angle) / 60000);
-    }
-    // function degreesToRadians(degrees) {
-    //     //Math.PI
-    //     if (degrees == "" || degrees == null || degrees == undefined) {
-    //         return 0;
-    //     }
-    //     return degrees * (Math.PI / 180);
-    // }
     getMimeType(imgFileExt: string | undefined) {
         let mimeType = "";
         //console.log(imgFileExt)
@@ -13584,7 +13319,7 @@ export class PPTX {
             ptrn += fillterNode;
         }
 
-        fill = this.escapeHtml(fill);
+        fill = escapeHtml(fill);
         if (sx !== undefined && sx != 0) {
             ptrn += '<image  xlink:href="' + fill + '" x="0" y="0" width="' + sx + '" height="' + sy + '" ' + imgOpacity + ' ' + filterUrl + '></image>';
         } else {
@@ -13613,85 +13348,6 @@ export class PPTX {
         } while (image.width === undefined);
 
         //return [w, h];
-    }
-
-    processMsgQueue(queue: any[]) {
-        for (var i = 0; i < queue.length; i++) {
-            this.processSingleMsg(queue[i].data);
-        }
-    }
-
-    processSingleMsg(d: any) {
-
-        let chartID = d.chartID;
-        let chartType = d.chartType;
-        let chartData = d.chartData;
-
-        let data = [];
-
-        let chart = null;
-        const nv = window.nv
-        const d3 = window.d3
-        switch (chartType) {
-            case "lineChart":
-                data = chartData;
-                chart = nv.models.lineChart()
-                    .useInteractiveGuideline(true);
-                chart.xAxis.tickFormat(function (d) { return chartData[0].xlabels[d] || d; });
-                break;
-            case "barChart":
-                data = chartData;
-                chart = nv.models.multiBarChart();
-                // @ts-ignore
-                chart.xAxis.tickFormat(function (d) { return chartData[0].xlabels[d] || d; });
-                break;
-            case "pieChart":
-            case "pie3DChart":
-                if (chartData.length > 0) {
-                    data = chartData[0].values;
-                }
-                chart = nv.models.pieChart();
-                break;
-            case "areaChart":
-                data = chartData;
-                chart = nv.models.stackedAreaChart()
-                    .clipEdge(true)
-                    .useInteractiveGuideline(true);
-                chart.xAxis.tickFormat(function (d) { return chartData[0].xlabels[d] || d; });
-                break;
-            case "scatterChart":
-
-                for (var i = 0; i < chartData.length; i++) {
-                    let arr = [];
-                    for (var j = 0; j < chartData[i].length; j++) {
-                        arr.push({ x: j, y: chartData[i][j] });
-                    }
-                    data.push({ key: 'data' + (i + 1), values: arr });
-                }
-
-                //data = chartData;
-                chart = nv.models.scatterChart()
-                    .showDistX(true)
-                    .showDistY(true)
-                    .color(d3.scale.category10().range());
-                chart.xAxis.axisLabel('X').tickFormat(d3.format('.02f'));
-                chart.yAxis.axisLabel('Y').tickFormat(d3.format('.02f'));
-                break;
-            default:
-        }
-
-        if (chart !== null) {
-
-            d3.select("#" + chartID)
-                .append("svg")
-                .datum(data)
-                .transition().duration(500)
-                .call(chart);
-            // @ts-ignore
-            nv.utils.windowResize(chart.update);
-            this.isDone = true;
-        }
-
     }
 
     // setNumericBullets(elem: string[]) {
@@ -13751,128 +13407,4 @@ export class PPTX {
     //         }
     //     }
     // }
-    getNumTypeNum(numTyp: string, num: number) {
-        let rtrnNum = "";
-        switch (numTyp) {
-            case "arabicPeriod":
-                rtrnNum = num + ". ";
-                break;
-            case "arabicParenR":
-                rtrnNum = num + ") ";
-                break;
-            case "alphaLcParenR":
-                rtrnNum = this.alphaNumeric(num, "lowerCase") + ") ";
-                break;
-            case "alphaLcPeriod":
-                rtrnNum = this.alphaNumeric(num, "lowerCase") + ". ";
-                break;
-
-            case "alphaUcParenR":
-                rtrnNum = this.alphaNumeric(num, "upperCase") + ") ";
-                break;
-            case "alphaUcPeriod":
-                rtrnNum = this.alphaNumeric(num, "upperCase") + ". ";
-                break;
-
-            case "romanUcPeriod":
-                rtrnNum = this.romanize(num) + ". ";
-                break;
-            case "romanLcParenR":
-                rtrnNum = this.romanize(num) + ") ";
-                break;
-            case "hebrew2Minus":
-                rtrnNum = this.hebrew2Minus.format(num) + "-";
-                break;
-            default:
-                rtrnNum = `${num}`;
-        }
-        return rtrnNum;
-    }
-    romanize(num: number) {
-        if (!+num)
-            return false;
-        let digits = String(+num).split(""),
-            key = ["", "C", "CC", "CCC", "CD", "D", "DC", "DCC", "DCCC", "CM",
-                "", "X", "XX", "XXX", "XL", "L", "LX", "LXX", "LXXX", "XC",
-                "", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX"],
-            roman = "",
-            i = 3;
-        while (i--)
-            roman = (key[+digits.pop()! + (i * 10)] || "") + roman;
-        return Array(+digits.join("") + 1).join("M") + roman;
-    }
-
-    alphaNumeric(num: number, upperLower: string) {
-        num = Number(num) - 1;
-        let aNum = "";
-        if (upperLower == "upperCase") {
-            aNum = (((num / 26 >= 1) ? String.fromCharCode(num / 26 + 64) : '') + String.fromCharCode(num % 26 + 65)).toUpperCase();
-        } else if (upperLower == "lowerCase") {
-            aNum = (((num / 26 >= 1) ? String.fromCharCode(num / 26 + 64) : '') + String.fromCharCode(num % 26 + 65)).toLowerCase();
-        }
-        return aNum;
-    }
-    base64ArrayBuffer(arrayBuffer: ArrayBuffer) {
-        let base64 = '';
-        let encodings = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
-        let bytes = new Uint8Array(arrayBuffer);
-        let byteLength = bytes.byteLength;
-        let byteRemainder = byteLength % 3;
-        let mainLength = byteLength - byteRemainder;
-
-        let a, b, c, d;
-        let chunk;
-
-        for (var i = 0; i < mainLength; i = i + 3) {
-            chunk = (bytes[i] << 16) | (bytes[i + 1] << 8) | bytes[i + 2];
-            a = (chunk & 16515072) >> 18;
-            b = (chunk & 258048) >> 12;
-            c = (chunk & 4032) >> 6;
-            d = chunk & 63;
-            base64 += encodings[a] + encodings[b] + encodings[c] + encodings[d];
-        }
-
-        if (byteRemainder == 1) {
-            chunk = bytes[mainLength];
-            a = (chunk & 252) >> 2;
-            b = (chunk & 3) << 4;
-            base64 += encodings[a] + encodings[b] + '==';
-        } else if (byteRemainder == 2) {
-            chunk = (bytes[mainLength] << 8) | bytes[mainLength + 1];
-            a = (chunk & 64512) >> 10;
-            b = (chunk & 1008) >> 4;
-            c = (chunk & 15) << 2;
-            base64 += encodings[a] + encodings[b] + encodings[c] + '=';
-        }
-
-        return base64;
-    }
-
-    IsVideoLink(vdoFile: string) {
-        /*
-        let ext = extractFileExtension(vdoFile);
-        if (ext.length == 3){
-            return false;
-        }else{
-            return true;
-        }
-        */
-        let urlregex = /^(https?|ftp):\/\/([a-zA-Z0-9.-]+(:[a-zA-Z0-9.&%$-]+)*@)*((25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9][0-9]?)(\.(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])){3}|([a-zA-Z0-9-]+\.)*[a-zA-Z0-9-]+\.(com|edu|gov|int|mil|net|org|biz|arpa|info|name|pro|aero|coop|museum|[a-zA-Z]{2}))(:[0-9]+)*(\/($|[a-zA-Z0-9.,?'\\+&%$#=~_-]+))*$/;
-        return urlregex.test(vdoFile);
-    }
-
-    extractFileExtension(filename: string) {
-        return filename.substr((~-filename.lastIndexOf(".") >>> 0) + 2);
-    }
-
-    escapeHtml(text: string) {
-        let map: {[key: string]: string} = {
-            '&': '&amp;',
-            '<': '&lt;',
-            '>': '&gt;',
-            '"': '&quot;',
-            "'": '&#039;'
-        };
-        return text.replace(/[&<>"']/g, function (m) { return map[m]; });
-    }
 }
