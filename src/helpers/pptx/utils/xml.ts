@@ -1,6 +1,6 @@
 import { XMLParser } from 'fast-xml-parser';
 
-export const xmlParser = new XMLParser({
+const xmlParser = new XMLParser({
     ignoreAttributes: false,
     attributeNamePrefix: "",
     attributesGroupName: "attrs",
@@ -8,3 +8,13 @@ export const xmlParser = new XMLParser({
     trimValues: false,
     cdataPropName: '@CDATA',
 });
+
+export const parse = (xml?: string) => {
+    if (!xml) {
+        return null;
+    }
+
+    const result = xmlParser.parse(xml);
+
+    return result;
+};

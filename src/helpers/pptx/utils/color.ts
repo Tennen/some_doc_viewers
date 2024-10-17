@@ -1,4 +1,5 @@
 import tinycolor from 'tinycolor2';
+import * as _ from 'lodash';
 
 // ===== Color functions =====
 /**
@@ -109,7 +110,7 @@ export const rgba2hex = (rgbaStr: string): string => {
 };
 
 export const angleToDegrees = (angle: string | number | null): number => {
-    if (angle === "" || angle === null) {
+    if (_.isEmpty(angle) || _.isNil(angle)) {
         return 0;
     }
     return Math.round(Number(angle) / 60000);

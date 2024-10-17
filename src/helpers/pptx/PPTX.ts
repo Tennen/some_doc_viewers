@@ -9,7 +9,7 @@ import { escapeHtml } from './utils/text';
 import { getNumTypeNum } from './utils/numeric';
 import { base64ArrayBuffer } from './utils/image';
 import { extractFileExtension, isVideoLink } from './utils/file';
-import { xmlParser } from './utils/xml';
+import { parse } from './utils/xml';
 import { angleToDegrees, applyHueMod, applySatMod, applyTint, applyShade, applyLumOff, applyLumMod, rtlLangs, toHex, colorMap, hslToRgb } from './utils/color';
 import './assets/d3.min.js';
 import './assets/nv.d3.min.js';
@@ -143,7 +143,7 @@ export class PPTX {
     private async readXmlFile(filename: string) {
         try {
             const fileContent = await this.zip?.file(filename)?.async("text");
-            return xmlParser.parse(fileContent);
+            return parse(fileContent);
         } catch (e) {
             console.log("error readXmlFile: the file '", filename, "' not exit")
             return null;
@@ -158,7 +158,6 @@ export class PPTX {
             this.readXmlFile("docProps/app.xml"),
             this.readXmlFile("ppt/presentation.xml"),
         ]);
-        console.log(ContentTypesData);
         let subObj = ContentTypesData["Types"]["Override"];
         let slidesLocArray = [];
         let slideLayoutsLocArray = [];
@@ -460,7 +459,7 @@ export class PPTX {
                 result = await this.processCxnSpNode(nodeValue, nodes, warpObj, source, sType);
                 break;
             case "p:pic":    // Picture
-                result = await this.processPicNode(nodeValue, warpObj, source, sType);
+                result = await this.processPicNode(nodeValue, nodes, warpObj, source, sType);
                 break;
             case "p:graphicFrame":    // Chart, Diagram, Table
                 result = await this.processGraphicFrameNode(nodeValue, warpObj, source, sType);
@@ -576,7 +575,7 @@ export class PPTX {
         let name = this.getTextByPathList(node, ["p:nvSpPr", "p:cNvPr", "attrs", "name"]);
         let idx = (this.getTextByPathList(node, ["p:nvSpPr", "p:nvPr", "p:ph", "attrs", "idx"]) === undefined) ? undefined : this.getTextByPathList(node, ["p:nvSpPr", "p:nvPr", "p:ph", "attrs", "idx"]);
         let type = (this.getTextByPathList(node, ["p:nvSpPr", "p:nvPr", "p:ph", "attrs", "type"]) === undefined) ? undefined : this.getTextByPathList(node, ["p:nvSpPr", "p:nvPr", "p:ph", "attrs", "type"]);
-        let order = this.getTextByPathList(node, ["attrs", "order"]);
+        let order = this.getTextByPathList(node, ["attrs", "order"]) || _.toInteger(id);
         let isUserDrawnBg;
         if (source == "slideLayoutBg" || source == "slideMasterBg") {
             let userDrawn = this.getTextByPathList(node, ["p:nvSpPr", "p:nvPr", "attrs", "userDrawn"]);
@@ -632,7 +631,7 @@ export class PPTX {
         let idx = (node["p:nvCxnSpPr"]["p:nvPr"]["p:ph"] === undefined) ? undefined : node["p:nvSpPr"]["p:nvPr"]["p:ph"]["attrs"]?.["idx"];
         let type = (node["p:nvCxnSpPr"]["p:nvPr"]["p:ph"] === undefined) ? undefined : node["p:nvSpPr"]["p:nvPr"]["p:ph"]["attrs"]?.["type"];
         //<p:cNvCxnSpPr>(<p:cNvCxnSpPr>, <a:endCxn>)
-        let order = node["attrs"]?.["order"];
+        let order = node["attrs"]?.["order"] || _.toInteger(id);
 
         return await this.genShape(node, pNode, undefined, undefined, id, name, idx, type, order, warpObj, undefined, sType, source);
     }
@@ -1717,7 +1716,7 @@ export class PPTX {
                     // if (isFlipV) {
                     //     d = "M 0 " + w + " L " + h + " " + w + " L " + h + " 0";
                     // } else {
-                    d = "M " + w + " 0 L " + w + " " + h + " L 0 " + h;
+                    d = "M 0 0 L " + w + " 0 L " + w + " " + h;
                     //}
                     result += "<path d='" + d + "' stroke='" + border.color +
                         "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' fill='none' ";
@@ -8174,11 +8173,12 @@ export class PPTX {
         return points;
     }
     */
-    private async processPicNode(node: any, warpObj: any, source: string, sType: string) {
+    private async processPicNode(node: any, pNode: any, warpObj: any, source: string, sType: string) {
         //console.log("processPicNode node:", node, "source:", source, "sType:", sType, "warpObj;", warpObj);
         let rtrnData = "";
         let mediaPicFlag = false;
-        let order = node["attrs"]?.["order"];
+        let id = this.getTextByPathList(node, ["p:nvPicPr", "p:cNvPr", "attrs", "id"]);
+        let order = node["attrs"]?.["order"] || _.toInteger(id);
 
         let rid = node["p:blipFill"]["a:blip"]["attrs"]?.["r:embed"];
         let resObj;
@@ -8281,6 +8281,7 @@ export class PPTX {
         rtrnData = "<div class='block content' style='" +
             ((mediaProcess && audioPlayerFlag) ? this.getPosition(audioObjc, node, undefined, undefined) : this.getPosition(xfrmNode, node, undefined, undefined)) +
             ((mediaProcess && audioPlayerFlag) ? this.getSize(audioObjc, undefined, undefined) : this.getSize(xfrmNode, undefined, undefined)) +
+            this.getBorder(node, pNode, false, "shape", warpObj) +
             " z-index: " + order + ";" +
             "transform: rotate(" + rotate + "deg);'>";
         if ((vdoNode === undefined && audioNode === undefined) || !mediaProcess || !mediaSupportFlag) {
@@ -11204,12 +11205,6 @@ export class PPTX {
             //subNodeTxt = "a:rPr";
         }
 
-        //var is_noFill = this.getTextByPathList(node, ["p:spPr", "a:noFill"]);
-        let is_noFill = this.getTextByPathList(lineNode, ["a:noFill"]);
-        if (is_noFill !== undefined) {
-            return "hidden";
-        }
-
         //console.log("lineNode: ", lineNode)
         if (lineNode == undefined) {
             let lnRefNode = this.getTextByPathList(node, ["p:style", "a:lnRef"])
@@ -11223,6 +11218,12 @@ export class PPTX {
             //is table
             cssText = "";
             lineNode = node
+        }
+
+        //var is_noFill = this.getTextByPathList(node, ["p:spPr", "a:noFill"]);
+        let is_noFill = this.getTextByPathList(lineNode, ["a:noFill"]);
+        if (is_noFill !== undefined) {
+            return "hidden";
         }
 
         let borderColor;
