@@ -11,22 +11,6 @@ The document viewing process can be summarized in the following steps:
 3. Render the appropriate preview component
 4. Convert and display the document content
 
-Here's a diagram illustrating the process:
-
-```mermaid
-graph TD
-    A[Load document file] --> B[Determine file type]
-    B --> C[Render preview component]
-    C --> D[Convert and display content]
-    
-    subgraph "Preview Components"
-        E1[PPTXPreview] --> C
-        E2[PDFPreview] --> C
-        E3[XLSXPreview] --> C
-        E4[DOCXPreview] --> C
-    end
-```
-
 ## Key components
 
 1. **Viewer**: The main component that orchestrates the preview process based on file type.
@@ -35,14 +19,6 @@ graph TD
 4. **XLSXPreview**: Displays Excel spreadsheets using xlsx library.
 5. **DOCXPreview**: Converts and shows Word documents using mammoth library.
 6. **PPTX class**: Handles PPTX to HTML conversion, based on the pptxjs library.
-
-## Main components and their functionality
-
-- `Viewer.tsx`: The main component that determines the file type and renders the appropriate preview component.
-- `PPTXPreview.tsx`: Uses the `usePPTX` hook to convert and display PPTX files.
-- `PDFPreview.tsx`: Renders PDF files page by page using react-pdf.
-- `XLSXPreview.tsx`: Converts Excel files to a table format for display.
-- `DOCXPreview.tsx`: Converts DOCX files to HTML for rendering.
 
 ## PPTX Conversion and pptxjs
 
