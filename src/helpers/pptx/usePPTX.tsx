@@ -1,4 +1,4 @@
-import { RefObject, useEffect, useMemo, useRef, useState } from 'react';
+import { RefObject, useEffect, useRef } from 'react';
 import { PPTX } from './PPTX';
 import '../../styles/pptx.less';
 

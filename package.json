@@ -1,6 +1,6 @@
 {
   "name": "some_doc_viewers",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "type": "module",
   "description": "A document viewer library with React components for PDF, PowerPoint, Excel, and Word documents. The PowerPoint viewer can also be used standalone without React.",
   "main": "dist/index.js",
@@ -10,6 +10,10 @@
     "dev": "tsup --watch",
     "test": "vitest run",
     "test:watch": "vitest"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Tennen/some_doc_viewers"
   },
   "keywords": [
     "document",
