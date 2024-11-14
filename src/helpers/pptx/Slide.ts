@@ -1168,12 +1168,12 @@ export class Slide {
                 }
             }
 
-            prg_width_node = parseInt(prg_width_node) * this.options.slideFactor - (bu_width as number) - (mrgin_val as number);
+            prg_width_node = parseInt(prg_width_node) * this.options.slideFactor - (bu_width as number) + (mrgin_val as number);
             if (isBullate) {
                 //get prg_width_node if there is a bulltes
                 //console.log("total_text_len: ", total_text_len, "prg_width_node:", prg_width_node)
                 if (total_text_len < prg_width_node) {
-                    prg_width_node = total_text_len + (bu_width as number);
+                    prg_width_node = total_text_len + (bu_width as number) + (mrgin_val as number);
                 }
             }
             let prg_width = ((prg_width_node !== undefined) ? ("width:" + (prg_width_node)) + "px;" : "width:inherit;");
