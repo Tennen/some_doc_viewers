@@ -602,6 +602,7 @@ export class Slide {
                 "' style='" +
                 this.getPosition(slideXfrmNode, pNode, undefined, undefined, sType) +
                 this.getSize(slideXfrmNode, pNode, undefined, undefined, sType) +
+                " min-height: 1px;" +
                 " z-index: " + order + ";" +
                 "transform: rotate(" + ((rotate !== undefined) ? rotate : 0) + "deg)" + flip + ";" +
                 "'>";
