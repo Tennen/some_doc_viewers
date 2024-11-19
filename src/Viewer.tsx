@@ -13,13 +13,13 @@ const FilePreview: React.FC<FilePreviewProps> = ({ fileUrl, fileType }) => {
   const renderPreview = () => {
     switch (fileType) {
       case 'pdf':
-        return <PDFPreview fileUrl={fileUrl} />;
+        return <PDFPreview url={fileUrl} />;
       case 'xlsx':
-        return <XLSXPreview fileUrl={fileUrl} />;
+        return <XLSXPreview url={fileUrl} />;
       case 'docx':
-        return <DOCXPreview fileUrl={fileUrl} />;
+        return <DOCXPreview url={fileUrl} />;
       case 'pptx':
-        return <PPTXPreview fileUrl={fileUrl} />;
+        return <PPTXPreview url={fileUrl} />;
       default:
         return <div>Unsupported file type</div>;
     }

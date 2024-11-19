@@ -4,12 +4,12 @@ import 'react-pdf/dist/esm/Page/TextLayer.css'
 import '../styles/pdf.less';
 
 interface PDFPreviewProps {
-  fileUrl: string;
+  url: string;
 }
 
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
-const PDFPreview: React.FC<PDFPreviewProps> = ({ fileUrl }) => {
+const PDFPreview: React.FC<PDFPreviewProps> = ({ url }) => {
     const [pageNumber, setPageNumber] = useState<number>(1);
 
     function onDocumentLoadSuccess({ numPages }: { numPages: number }): void {
@@ -17,7 +17,7 @@ const PDFPreview: React.FC<PDFPreviewProps> = ({ fileUrl }) => {
     }
   return (
     <div className="pdf-preview">
-      <Document file={fileUrl} onLoadSuccess={onDocumentLoadSuccess}>
+      <Document file={url} onLoadSuccess={onDocumentLoadSuccess}>
         {Array.from({ length: pageNumber }, (_, index) => (
           <Page key={index} pageNumber={index + 1} renderTextLayer={false} scale={1.5} />
         ))}

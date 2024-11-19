@@ -9,14 +9,10 @@ import { StyleTable } from './Style';
 import { Slide } from './Slide';
 import { ResourceReader } from './ResourceReader';
 
-interface PPTXOptions {
+export interface PPTXOptions {
     url?: string;
     file?: ArrayBuffer;
     processFullTheme?: boolean | string;
-    incSlide?: {
-        width: number;
-        height: number;
-    };
     mediaProcess?: boolean;
     container?: HTMLElement;
     fontSizeFactor?: number;
@@ -26,10 +22,6 @@ interface PPTXOptions {
 export class PPTX {
     private options: PPTXOptions = {
         processFullTheme: true,
-        incSlide: {
-            width: 0,
-            height: 0,
-        },
         mediaProcess: false,
         slideFactor: 96 / 914400,
         fontSizeFactor: 4 / 3.2,
@@ -115,7 +107,6 @@ export class PPTX {
                 mediaProcess: this.options.mediaProcess,
                 resourceReader: this.resourceReader,
                 basicInfo: this.basicInfo,
-                container: this.options.container,
                 tableStyles: this.tableStyles,
                 styleTable: this.styleTable,
                 slideFactor: this.options.slideFactor!,
@@ -178,8 +169,8 @@ export class PPTX {
             slides: slidesLocArray,
             slideLayouts: slideLayoutsLocArray,
             defaultTextStyle: presentation["p:presentation"]["p:defaultTextStyle"],
-            width: sldSzWidth * this.options.slideFactor! + (this.options.incSlide?.width || 0), // * scaleX;//parseInt(sldSzAttrs["cx"]) * 96 / 914400;
-            height: sldSzHeight * this.options.slideFactor! + (this.options.incSlide?.height || 0), // * scaleY;//parseInt(sldSzAttrs["cy"]) * 96 / 914400;
+            width: sldSzWidth * this.options.slideFactor!,
+            height: sldSzHeight * this.options.slideFactor!
         };
     }
 

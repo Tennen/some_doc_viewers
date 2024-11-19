@@ -3,15 +3,15 @@ import * as XLSX from 'xlsx';
 import '../styles/xlsx.less';
 
 interface XLSXPreviewProps {
-  fileUrl: string;
+  url: string;
 }
 
-const XLSXPreview: React.FC<XLSXPreviewProps> = ({ fileUrl }) => {
+const XLSXPreview: React.FC<XLSXPreviewProps> = ({ url }) => {
   const [data, setData] = useState<any[][]>([]);
 
   useEffect(() => {
     const fetchData = async () => {
-      const response = await fetch(fileUrl);
+      const response = await fetch(url);
       const arrayBuffer = await response.arrayBuffer();
       const workbook = XLSX.read(arrayBuffer, { type: 'array' });
       const sheetName = workbook.SheetNames[0];
@@ -21,7 +21,7 @@ const XLSXPreview: React.FC<XLSXPreviewProps> = ({ fileUrl }) => {
     };
 
     fetchData();
-  }, [fileUrl]);
+  }, [url]);
 
   return (
     <div className="xlsx-preview">

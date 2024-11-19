@@ -2,12 +2,17 @@ import React, { useRef } from 'react';
 import { usePPTX } from '../helpers/pptx/usePPTX';
 
 interface PPTXPreviewProps {
-  fileUrl: string;
+  url?: string;
+  file?: ArrayBuffer;
+  processFullTheme?: boolean | string;
+  mediaProcess?: boolean;
+  fontSizeFactor?: number;
+  slideFactor?: number;
 }
 
-const PPTXPreview: React.FC<PPTXPreviewProps> = ({ fileUrl }) => {
+const PPTXPreview: React.FC<PPTXPreviewProps> = ({ url }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  usePPTX({ url: fileUrl, containerRef: containerRef });
+  usePPTX({ url, containerRef: containerRef });
   return <div ref={containerRef}></div>;
 };
 

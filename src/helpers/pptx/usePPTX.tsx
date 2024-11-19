@@ -1,21 +1,17 @@
 import { RefObject, useEffect, useRef } from 'react';
-import { PPTX } from './PPTX';
+import { PPTX, PPTXOptions } from './PPTX';
 import '../../styles/pptx.less';
 
-interface Options {
-    url?: string;
-    file?: ArrayBuffer;
+interface Options extends PPTXOptions {
     containerRef?: RefObject<HTMLElement>;
 }
 
 export const usePPTX = (options: Options) => {
     const pptxRef = useRef<PPTX | null>(null);
+    const { containerRef, ...restOptions } = options;
     const loadingRef = useRef(false);
     useEffect(() => {
-        pptxRef.current = new PPTX({
-            file: options.file,
-            url: options.url,
-        });
+        pptxRef.current = new PPTX(restOptions);
     }, [])
     useEffect(() => {
         if (!options.containerRef?.current || loadingRef.current) {

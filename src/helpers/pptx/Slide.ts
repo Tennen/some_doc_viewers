@@ -22,7 +22,6 @@ interface SlideOptions {
     index?: number;
     processFullTheme?: boolean | string;
     mediaProcess?: boolean;
-    container?: HTMLElement;
     resourceReader?: ResourceReader | null;
     slideFactor: number;
     fontSizeFactor: number;
