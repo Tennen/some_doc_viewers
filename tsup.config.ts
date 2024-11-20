@@ -13,4 +13,5 @@ export default defineConfig({
   loader: {
     '.less': 'css',
   },
+  minify: true
 });
